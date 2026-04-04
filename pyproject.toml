@@ -1,0 +1,148 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "duelyst-ai-core"
+version = "0.1.0"
+description = "Open-source AI debate engine — multi-model adversarial debates with LangGraph orchestration"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Duelyst.ai", email = "core@duelyst.ai" },
+]
+keywords = ["ai", "debate", "langgraph", "multi-agent", "llm", "orchestration"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "langgraph>=0.4,<1.0",
+    "langchain-core>=0.3,<1.0",
+    "langchain-anthropic>=0.3,<1.0",
+    "langchain-openai>=0.3,<1.0",
+    "langchain-google-genai>=2.1,<3.0",
+    "pydantic>=2.0,<3.0",
+    "typer>=0.15,<1.0",
+    "rich>=13.0,<14.0",
+]
+
+[project.optional-dependencies]
+search = [
+    "tavily-python>=0.5,<1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "pre-commit>=4.0",
+]
+
+[project.scripts]
+duelyst = "duelyst_ai_core.cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/duelyst-ai/duelyst-ai-core"
+Documentation = "https://github.com/duelyst-ai/duelyst-ai-core#readme"
+Repository = "https://github.com/duelyst-ai/duelyst-ai-core"
+Issues = "https://github.com/duelyst-ai/duelyst-ai-core/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/duelyst_ai_core"]
+
+# --- Ruff ---
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking
+    "RUF",   # ruff-specific rules
+    "S",     # flake8-bandit (security)
+    "T20",   # flake8-print (no print statements)
+    "PTH",   # flake8-use-pathlib
+    "ASYNC", # flake8-async
+]
+ignore = [
+    "S101",  # allow assert in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S", "T20"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["duelyst_ai_core"]
+
+# --- mypy ---
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "tavily.*",
+    "langgraph.*",
+    "langchain_core.*",
+    "langchain_anthropic.*",
+    "langchain_openai.*",
+    "langchain_google_genai.*",
+]
+ignore_missing_imports = true
+
+# --- pytest ---
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: marks tests that call real APIs (deselect with '-m \"not integration\"')",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+# --- coverage ---
+
+[tool.coverage.run]
+source = ["duelyst_ai_core"]
+omit = ["tests/*", "src/duelyst_ai_core/cli/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+    "@abstractmethod",
+]

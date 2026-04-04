@@ -89,9 +89,9 @@ Tools are **optional per debate** — the orchestrator and agents work without t
 
 ## Tech Stack
 
-- **Python 3.11+**
-- **LangGraph** — agent orchestration framework
-- **LangChain** — model adapters and tool abstractions
+- **Python 3.13+**
+- **LangGraph 1.1+** — agent orchestration framework
+- **LangChain 1.2+** — model adapters and tool abstractions
 - **Pydantic** — data models and validation
 - **Typer** or **Click** — CLI framework
 - **Rich** — terminal output formatting
