@@ -127,6 +127,7 @@ asyncio_mode = "auto"
 markers = [
     "integration: marks tests that call real APIs (deselect with '-m \"not integration\"')",
 ]
+addopts = "--ignore=tests/integration"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
