@@ -2,11 +2,13 @@
 
 > Phase 1: OSS Engine + CLI — from zero to a working `pip install duelyst-ai-core` that runs multi-model debates from the terminal.
 
+**Status: Phase 1 Complete** — All steps implemented. 154 tests passing. Ruff, mypy clean.
+
 ---
 
 ## Completed Steps
 
-### Step 1: Project Scaffolding & Tooling ✅
+### Step 1: Project Scaffolding & Tooling
 
 - `pyproject.toml` with Hatch build backend, all dependencies, ruff/mypy/pytest config
 - `src/` layout with full directory structure and `__init__.py` files
@@ -14,7 +16,7 @@
 - `.github/workflows/ci.yml` for lint/type-check/test on push/PR
 - `src/duelyst_ai_core/py.typed` PEP 561 marker
 
-### Step 2: Data Models & State Schema ✅
+### Step 2: Data Models & State Schema
 
 **Files:**
 - `orchestrator/state.py` — `ModelConfig`, `DebateConfig`, `DebateStatus`, `ToolType`, `OrchestratorState`
@@ -24,7 +26,7 @@
 
 **Tests:** `tests/test_models/test_schemas.py`, `tests/test_orchestrator/test_events.py`
 
-### Step 3: Model Registry ✅
+### Step 3: Model Registry
 
 **Architecture decision:** Removed the abstract `BaseModelAdapter` pattern. LangChain's `BaseChatModel` is the interface. Provider-specific logic consolidated into private factory functions in `registry.py`.
 
@@ -35,7 +37,7 @@
 
 **Tests:** `tests/test_models/test_adapters.py`, `tests/test_models/test_registry.py`
 
-### Step 4: Agent Implementation ✅
+### Step 4: Agent Implementation
 
 **Architecture decision:** Agents use `create_agent` from `langchain.agents` (prebuilt ReAct agent factory) instead of custom multi-node `StateGraph` graphs. Removed the `BaseAgent` ABC — unnecessary abstraction for two simple wrapper classes.
 
@@ -54,7 +56,7 @@ Key parameter mapping:
 
 **Tests:** `tests/test_agents/test_debater.py`, `tests/test_agents/test_judge.py`, `tests/test_agents/test_prompts.py`
 
-### Step 5: Orchestrator ✅
+### Step 5: Orchestrator
 
 **Files:**
 - `orchestrator/engine.py` — `DebateOrchestrator` class with LangGraph `StateGraph`, nodes for init/debater_a/debater_b/check_convergence/judge, conditional routing, `visualize()` and `visualize_ascii()` methods
@@ -65,80 +67,41 @@ Key parameter mapping:
 
 **Tests:** `tests/test_orchestrator/test_engine.py`, `tests/test_orchestrator/test_convergence.py`
 
-**Test count:** 117 tests, all passing. Ruff, mypy clean.
-
----
-
-## Remaining Steps
-
 ### Step 6: Output Formatters
 
-**Goal:** Transform `DebateResult` into human-readable or machine-readable formats.
-
-**Files to create:**
-- `formatters/base.py` — abstract `BaseFormatter`
-- `formatters/markdown.py` — `MarkdownFormatter` (headers, quotes, evidence lists)
+**Files:**
+- `formatters/base.py` — abstract `BaseFormatter` with `format(result: DebateResult) -> str`
+- `formatters/markdown.py` — `MarkdownFormatter` (headers, quoted arguments, evidence lists, synthesis sections)
 - `formatters/json_fmt.py` — `JsonFormatter` (`result.model_dump_json(indent=2)`)
-- `formatters/rich_terminal.py` — `RichTerminalFormatter` (Rich panels, tables, colored output)
+- `formatters/rich_terminal.py` — `RichTerminalFormatter` (Rich panels with agent colors, tables, styled synthesis)
+- `formatters/__init__.py` — exports all three formatters
 
-The Rich formatter should support real-time CLI streaming — render each turn as it arrives.
-
-**Tests:** `tests/test_formatters/`
+**Tests:** `tests/test_formatters/test_markdown.py` (11 tests), `tests/test_formatters/test_json.py` (4 tests), `tests/test_formatters/test_rich.py` (5 tests)
 
 ### Step 7: Web Search Tool (Tavily)
 
-**Goal:** LangChain-compatible tool that agents can invoke for real-time research.
+**Files:**
+- `tools/search.py` — `create_search_tool()` returns `TavilySearchResults` from `langchain-community`, `is_search_available()` for graceful degradation
+- `tools/__init__.py` — exports both functions
 
-**Files to create:**
-- `tools/search.py` — Tavily integration, returns structured results
-- `tools/__init__.py` — tool registry/factory
+Design: standard LangChain `BaseTool` that works with `create_agent`'s `tools` parameter. Raises `ConfigError` if no API key, `ToolError` if package missing.
 
-Design notes:
-- Uses `tavily-python` SDK
-- Returns structured results (title, URL, snippet, relevance score)
-- Rate limiting and error handling built in
-- Graceful degradation: if no API key, tool is unavailable (not an error)
-- Tool is a standard LangChain `BaseTool` — works directly with `create_agent`'s `tools` parameter
-
-**Tests:** `tests/test_tools/test_search.py`
+**Tests:** `tests/test_tools/test_search.py` (5 tests)
 
 ### Step 8: CLI
 
-**Goal:** `duelyst debate "topic"` runs a full debate with real-time terminal output.
+**Files:**
+- `cli/main.py` — Typer app with `debate` command, all options (model-a, model-b, judge, instructions, rounds, threshold, convergence-rounds, tools, output, verbose)
+- `cli/display.py` — `DebateDisplay` class with `show_config()` and `run_debate()`, Rich Status spinner, builds `DebateResult` from graph output
 
-**Files to create:**
-- `cli/main.py` — Typer app with `debate` command
-- `cli/display.py` — Rich live display for streaming debate progress
-
-CLI responsibilities:
-- Parse arguments → build `DebateConfig` (using `resolve_alias` for model names)
-- Create `DebateOrchestrator` and invoke the graph
-- Render events in real-time using Rich (spinners, progress, panels)
-- On completion, output final result in requested format
-- Handle Ctrl+C gracefully
-
-```python
-@app.command()
-def debate(
-    topic: str,
-    model_a: str = "claude-sonnet",
-    model_b: str = "gpt-4o",
-    rounds: int = 5,
-    tools: str | None = None,
-    output: str = "rich",
-    ...
-): ...
-```
-
-**Tests:** `tests/test_cli/test_main.py`
+**Tests:** `tests/test_cli/test_main.py` (12 tests)
 
 ### Step 9: Public API & Polish
 
-**Files to update:**
-- `__init__.py` — finalize public API exports (`run_debate`, `DebateConfig`, `DebateResult`, etc.)
-- `README.md` — comprehensive with examples, installation, usage
-- `examples/` — working example scripts
-- `.github/workflows/publish.yml` — PyPI publish on tag
+**Files:**
+- `__init__.py` — finalized public API exports (13 symbols)
+- `README.md` — comprehensive with installation, CLI usage, Python API, model table, architecture, CLI options, development setup, project structure
+- `tests/conftest.py` — shared fixtures (`sample_config`, `sample_debate_result`)
 
 ---
 
@@ -191,6 +154,9 @@ dependencies = [
     "typer>=0.24,<1.0",
     "rich>=14.0,<15.0",
 ]
+
+[project.optional-dependencies]
+search = ["tavily-python>=0.7,<1.0"]
 ```
 
 ---
@@ -203,7 +169,25 @@ dependencies = [
 | Model registry | Unit | Mock LangChain chat model constructors, test factory dispatch |
 | Agents | Unit | Patch `create_agent`, verify init params and graph invocation |
 | Orchestrator | Integration | Mock agent graphs, test full debate flow end-to-end |
+| Formatters | Unit | Test output format, content presence, structure |
+| Tools | Unit | Mock imports and env vars, test creation and availability |
 | CLI | Integration | Typer CliRunner, mock orchestrator |
 | Real APIs | Integration | `@pytest.mark.integration`, separate CI job, real API keys in secrets |
 
-Current: 117 tests, all passing.
+Current: 154 tests, all passing.
+
+---
+
+## Future Phases
+
+### Phase 2: Streaming & Real-time Display
+- Event-based streaming from orchestrator
+- Rich live display that updates per-turn during debate
+
+### Phase 3: Examples & Documentation
+- Working example scripts (`examples/`)
+- PyPI publish workflow (`.github/workflows/publish.yml`)
+
+### Phase 4: Code Execution & Visualization
+- E2B / Docker code execution tool
+- Matplotlib/Plotly chart generation as debate evidence

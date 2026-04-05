@@ -2,7 +2,7 @@
 
 ## What is Duelyst.ai
 
-Duelyst.ai is a platform where AI models debate topics in structured multi-turn exchanges. Two AI agents — each powered by a model chosen by the user (Claude, GPT, Gemini) — research, argue, challenge each other, and converge toward a synthesis. Debates are published as shareable content pages, creating a growing library of AI-generated analysis.
+Duelyst.ai is a platform where AI models debate topics in structured multi-turn exchanges. Two AI agents — each powered by a model chosen by the user (Claude, GPT, Gemini) — research, argue, challenge each other, and converge toward a synthesis.
 
 The platform reduces two known LLM failure modes: **sycophancy** (a single model tends to agree with the user) and **hallucination** (fabricated facts go unchallenged). When two models debate adversarially, they challenge claims, request evidence, and surface disagreements.
 
@@ -10,13 +10,13 @@ The platform reduces two known LLM failure modes: **sycophancy** (a single model
 
 This is the **open-source debate engine** — a standalone Python package published on PyPI (`pip install duelyst-ai-core`). It contains the LangGraph-based orchestration of multi-agent debates, model adapters, tool integrations, and a CLI.
 
-This repo is the OSS core of an open-core product. It must remain **product-independent** — no references to the API, frontend, billing, or user accounts. A developer installs it, provides their own API keys, and runs debates from the terminal or integrates into their own projects.
+This repo is the OSS core of an open-core product. It must remain **product-independent** — no references to the API, frontend, billing, or user accounts.
 
 ### What belongs here
 
 - LangGraph agent and orchestrator definitions
-- Model adapters (Anthropic, OpenAI, Google)
-- Tool integrations (web search, code execution, data visualization)
+- Model registry (Anthropic, OpenAI, Google)
+- Tool integrations (web search)
 - Debate orchestration logic (turns, convergence detection, synthesis)
 - CLI interface
 - Output formatters (Markdown, JSON, Rich terminal)
@@ -27,7 +27,6 @@ This repo is the OSS core of an open-core product. It must remain **product-inde
 - Authentication, user management, billing
 - Database schemas or persistence logic
 - Frontend code or API endpoints
-- Supabase/Railway/Vercel configuration
 - Any secret or API key (even in examples — use placeholders)
 
 ## Architecture
@@ -36,8 +35,8 @@ This repo is the OSS core of an open-core product. It must remain **product-inde
 
 Agents use `create_agent` from `langchain.agents` — a prebuilt ReAct agent factory that handles the tool-calling loop and structured output automatically. Each agent is a thin class wrapping `create_agent` with the appropriate system prompt and `response_format`.
 
-- **DebaterAgent** (`agents/debater.py`): Receives debate context as messages, optionally uses tools (web search, code execution), and produces a structured `AgentResponse` with argument and convergence score.
-- **JudgeAgent** (`agents/judge.py`): No tools. Receives the full debate transcript and produces a `JudgeSynthesis`.
+- **DebaterAgent** (`agents/debater.py`): Receives debate context as messages, optionally uses tools (web search), produces structured `AgentResponse` with argument and convergence score.
+- **JudgeAgent** (`agents/judge.py`): No tools. Receives full transcript, produces `JudgeSynthesis`.
 
 ### Orchestrator
 
@@ -51,11 +50,6 @@ START → init_debate → run_debater_a → run_debater_b → check_convergence
                                             converged/max → run_judge → END
 ```
 
-- Alternates turns between Agent A and Agent B
-- Tracks convergence scores from both agents
-- Terminates when: both agents score >= threshold for N consecutive rounds, OR max rounds reached
-- Triggers synthesis generation by a judge agent (third model, different from debaters)
-
 ### Model Layer
 
 No custom adapter classes. `models/registry.py` provides:
@@ -63,23 +57,19 @@ No custom adapter classes. `models/registry.py` provides:
 - `resolve_alias(name)` — maps short names like "claude-sonnet" to (provider, model_id)
 - `get_judge_model(model_a, model_b)` — auto-selects a judge from a different provider
 
-### Models Supported
-
-| Provider | Models | SDK |
-|----------|--------|-----|
-| Anthropic | Claude Opus, Sonnet, Haiku | `langchain-anthropic` |
-| OpenAI | GPT-4o, GPT-4o-mini, GPT-4.1 | `langchain-openai` |
-| Google | Gemini Pro, Flash | `langchain-google-genai` |
-
 ### Tools
 
-| Tool | Purpose | Provider |
-|------|---------|----------|
-| Web search | Find current data, statistics, evidence | Tavily (primary), configurable |
-| Code execution | Run Python for calculations, charts, data analysis | E2B (cloud) or local Docker |
-| Data visualization | Generate charts/graphs as debate evidence | Matplotlib/Plotly via code execution |
+Web search via Tavily (`tools/search.py`). Optional — agents work without it. Graceful degradation when API key is missing.
 
-Tools are **optional per debate** — the orchestrator and agents work without them. When enabled, agents decide autonomously when to use tools based on the debate context.
+### Output Formatters
+
+- `RichTerminalFormatter` — Rich panels with colors
+- `MarkdownFormatter` — headers, quotes, evidence lists
+- `JsonFormatter` — Pydantic model serialization
+
+### CLI
+
+Typer-based CLI (`cli/main.py`) with `debate` command, Rich live display (`cli/display.py`), supports all output formats.
 
 ## Tech Stack
 
@@ -93,28 +83,25 @@ Tools are **optional per debate** — the orchestrator and agents work without t
 
 ## Coding Conventions
 
-- **Type hints everywhere** — use Pydantic models for data structures, type annotations for all function signatures.
-- **Docstrings** — Google style. Every public class and function gets a docstring.
-- **Error handling** — never swallow exceptions silently. API errors from LLM providers should be caught, logged, and re-raised with context.
-- **No print statements** — use `logging` module or Rich console for output. The CLI layer handles user-facing output; library code uses logging.
-- **Async where appropriate** — LLM API calls and tool execution should be async. The CLI can use `asyncio.run()` as entry point.
-- **Tests** — pytest. Mock LLM API calls in unit tests (don't burn API credits on CI). Integration tests that call real APIs are in a separate folder, marked with `@pytest.mark.integration`.
+- **Type hints everywhere** — Pydantic models for data structures, type annotations for all function signatures.
+- **Docstrings** — Google style. Every public class and function.
+- **Error handling** — never swallow exceptions silently. Catch, log, and re-raise with context.
+- **No print statements** — use `logging` module or Rich console.
+- **Async where appropriate** — LLM calls and tool execution are async.
+- **Tests** — pytest. Mock LLM APIs in unit tests. Integration tests in separate folder with `@pytest.mark.integration`.
+- **LangGraph runtime types** — types in TypedDict state fields must be runtime imports (not behind `TYPE_CHECKING`).
 
 ## Key Design Decisions
 
-1. **Agents use `create_agent`** — the prebuilt agent factory from `langchain.agents` handles the ReAct loop. No custom multi-node agent graphs.
-2. **No custom adapter layer** — LangChain's `BaseChatModel` is the interface. Provider-specific logic lives in private factory functions in `registry.py`.
-3. **System prompts are static** — user input goes into the user message, never into the system prompt.
-4. **Structured output** — agents return structured Pydantic models via `response_format` parameter.
-5. **Tools are optional** — debates work without tools. Tools enhance quality but are not required.
-6. **The core is product-independent** — no concept of users, billing, or persistence.
+1. **Agents use `create_agent`** — prebuilt ReAct agent factory. No custom multi-node agent graphs.
+2. **No custom adapter layer** — LangChain's `BaseChatModel` is the interface.
+3. **No BaseAgent ABC** — each agent is ~20 lines, abstraction unnecessary.
+4. **System prompts are static** — user input goes in user message, never system prompt.
+5. **Structured output** — `response_format` parameter, output in `state["structured_response"]`.
+6. **Tools are optional** — debates work without tools.
+7. **Product-independent** — no users, billing, or persistence.
+8. **Orchestrator state is source of truth** — agents use `MessagesState` internally.
 
-## Current Phase
+## Current Status
 
-**Phase 1: OSS Engine + CLI**
-
-Completed: scaffolding, data models, model registry, agents (DebaterAgent, JudgeAgent), orchestrator, convergence detection, streaming events, 117 tests.
-
-Next: CLI, output formatters, web search tool, README.
-
-Code execution tool and data visualization are Phase 4 — do not implement now unless specifically asked.
+**Phase 1: Complete** — All deliverables implemented. 154 tests passing. Ruff, mypy clean.
