@@ -65,7 +65,7 @@ def create_search_tool() -> BaseTool:
         )
         raise ToolError(msg) from None
 
-    tool = TavilySearch(
+    tool: BaseTool = TavilySearch(
         max_results=5,
         topic="general",
     )

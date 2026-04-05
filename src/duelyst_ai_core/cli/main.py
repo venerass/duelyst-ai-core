@@ -55,6 +55,7 @@ class OutputFormat(StrEnum):
     MARKDOWN = "markdown"
     JSON = "json"
 
+
 app = typer.Typer(
     name="duelyst",
     help=_ROOT_HELP,
@@ -148,9 +149,7 @@ def debate(
             "--model-b",
             "-b",
             metavar="ALIAS_OR_MODEL",
-            help=(
-                "Model for side B. Defaults to gpt-mini for cheap local smoke tests."
-            ),
+            help=("Model for side B. Defaults to gpt-mini for cheap local smoke tests."),
             rich_help_panel="Model Selection",
         ),
     ] = "gpt-mini",
@@ -213,9 +212,7 @@ def debate(
         int,
         typer.Option(
             "--convergence-rounds",
-            help=(
-                "How many consecutive converged rounds are required before the judge runs."
-            ),
+            help=("How many consecutive converged rounds are required before the judge runs."),
             rich_help_panel="Debate Setup",
         ),
     ] = 2,
