@@ -70,9 +70,9 @@ No custom adapter classes. The `models/registry.py` module provides:
 
 | Provider | Models | SDK |
 |----------|--------|-----|
-| Anthropic | Claude Opus, Sonnet, Haiku | `langchain-anthropic` |
-| OpenAI | GPT-4o, GPT-4o-mini, GPT-4.1 | `langchain-openai` |
-| Google | Gemini Pro, Flash | `langchain-google-genai` |
+| Anthropic | Claude Opus 4.6, Sonnet 4.6, Haiku 4.5 | `langchain-anthropic` |
+| OpenAI | GPT-5.4, GPT-5.4 mini, GPT-5.4 nano | `langchain-openai` |
+| Google | Gemini 2.5 Pro, Flash, Flash-Lite | `langchain-google-genai` |
 
 ### Tools
 
@@ -84,7 +84,7 @@ Tools are **optional per debate** — agents work without them. When enabled, ag
 | Code execution | Run Python for calculations, charts | Future (Phase 4) |
 | Data visualization | Generate charts/graphs as debate evidence | Future (Phase 4) |
 
-The search tool uses `TavilySearchResults` from `langchain-community`. It's a standard LangChain `BaseTool` — works directly with `create_agent`'s `tools` parameter. Graceful degradation: if no API key, the tool is unavailable (warning, not error).
+The search tool uses `TavilySearchResults` from `langchain-tavily`. It's a standard LangChain `BaseTool` — works directly with `create_agent`'s `tools` parameter. Graceful degradation: if no API key, the tool is unavailable (warning, not error).
 
 ### Output Formatters
 
@@ -169,7 +169,10 @@ duelyst-ai-core/
 │   ├── test_cli/                    # test_main.py
 │   └── integration/                 # Real API tests (not in default test run)
 ├── docs/
-│   └── IMPLEMENTATION_PLAN.md
+│   ├── ARCHITECTURE.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   ├── PHASE_2_3_PLAN.md
+│   └── PRD_duelyst_ai.md
 ├── pyproject.toml
 ├── CLAUDE.md                        # This file
 ├── README.md
@@ -226,6 +229,15 @@ All Phase 1 deliverables are implemented:
 9. Public API exports
 10. README
 
-154 tests passing. Ruff, mypy clean.
+**Phase 2-3: Streaming, Events & Publishing — Complete**
+
+- Streaming event system (`arun_with_events()` async generator)
+- Typed debate lifecycle events (started, round, turn, convergence, synthesis, completed, error)
+- `DebateEventCallback` protocol with `NullCallback` and `CollectorCallback`
+- `RichDisplayCallback` for live CLI display
+- CI with GitHub Actions (lint, type check, test)
+- PyPI publishing workflow with trusted publishing
+
+154+ tests passing. Ruff, mypy clean.
 
 Code execution tool and data visualization are Phase 4 — do not implement now unless specifically asked.
