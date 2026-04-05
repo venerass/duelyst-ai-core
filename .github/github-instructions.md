@@ -1,107 +1,144 @@
-# Duelyst.ai Core — Project Context
+# Duelyst.ai Core — Repository Context
 
-## What is Duelyst.ai
+## Purpose
 
-Duelyst.ai is a platform where AI models debate topics in structured multi-turn exchanges. Two AI agents — each powered by a model chosen by the user (Claude, GPT, Gemini) — research, argue, challenge each other, and converge toward a synthesis.
+`duelyst-ai-core` is the open-source debate engine behind Duelyst.ai. It is a standalone Python package
+published on PyPI and must remain product-independent.
 
-The platform reduces two known LLM failure modes: **sycophancy** (a single model tends to agree with the user) and **hallucination** (fabricated facts go unchallenged). When two models debate adversarially, they challenge claims, request evidence, and surface disagreements.
+What belongs here:
 
-## This Repository: duelyst-ai-core
+- debate agents and orchestration
+- model registry and alias resolution
+- optional tool integrations
+- streaming events and callback interfaces
+- CLI, output formatters, examples, tests, and docs
 
-This is the **open-source debate engine** — a standalone Python package published on PyPI (`pip install duelyst-ai-core`). It contains the LangGraph-based orchestration of multi-agent debates, model adapters, tool integrations, and a CLI.
+What does not belong here:
 
-This repo is the OSS core of an open-core product. It must remain **product-independent** — no references to the API, frontend, billing, or user accounts.
+- authentication or user accounts
+- billing or subscription logic
+- database persistence
+- API endpoints or frontend code
+- secrets or real API keys
 
-### What belongs here
+## Core Architecture
 
-- LangGraph agent and orchestrator definitions
-- Model registry (Anthropic, OpenAI, Google)
-- Tool integrations (web search)
-- Debate orchestration logic (turns, convergence detection, synthesis)
-- CLI interface
-- Output formatters (Markdown, JSON, Rich terminal)
-- Tests and documentation
+### Agents
 
-### What does NOT belong here
+Agents are thin wrappers around `langchain.agents.create_agent`.
 
-- Authentication, user management, billing
-- Database schemas or persistence logic
-- Frontend code or API endpoints
-- Any secret or API key (even in examples — use placeholders)
+- `src/duelyst_ai_core/agents/debater.py`: debater agent with optional tools and structured `AgentResponse`
+- `src/duelyst_ai_core/agents/judge.py`: judge agent with structured `JudgeSynthesis`
 
-## Architecture
-
-### Agent Design
-
-Agents use `create_agent` from `langchain.agents` — a prebuilt ReAct agent factory that handles the tool-calling loop and structured output automatically. Each agent is a thin class wrapping `create_agent` with the appropriate system prompt and `response_format`.
-
-- **DebaterAgent** (`agents/debater.py`): Receives debate context as messages, optionally uses tools (web search), produces structured `AgentResponse` with argument and convergence score.
-- **JudgeAgent** (`agents/judge.py`): No tools. Receives full transcript, produces `JudgeSynthesis`.
+Important rule: user-controlled topic/instructions/transcript content goes into user messages, never into
+system prompts. Prompt templates in `agents/prompts.py` are static by design.
 
 ### Orchestrator
 
-The orchestrator (`orchestrator/engine.py`) is a LangGraph `StateGraph`:
+The outer control plane is a LangGraph `StateGraph` in `src/duelyst_ai_core/orchestrator/engine.py`.
 
-```
-START → init_debate → run_debater_a → run_debater_b → check_convergence
-                      ↑                                       |
-                      |_____ continue ________________________|
+Topology:
+
+```text
+START -> init_debate -> run_debater_a -> run_debater_b -> check_convergence
+                      ^                                       |
+                      |___________ continue _________________ |
                                                               |
-                                            converged/max → run_judge → END
+                                            converged/max -> run_judge -> END
 ```
 
-### Model Layer
+The orchestrator owns the real debate lifecycle:
 
-No custom adapter classes. `models/registry.py` provides:
-- `create_model(config)` — returns a LangChain `BaseChatModel` directly
-- `resolve_alias(name)` — maps short names like "claude-sonnet" to (provider, model_id)
-- `get_judge_model(model_a, model_b)` — auto-selects a judge from a different provider
+- round progression
+- transcript accumulation
+- convergence tracking
+- synthesis invocation
+- event emission
 
-### Tools
+Sub-agents do not own debate state. They receive messages and return structured output.
 
-Web search via Tavily (`tools/search.py`). Optional — agents work without it. Graceful degradation when API key is missing.
+### State And Schemas
 
-### Output Formatters
+- `src/duelyst_ai_core/orchestrator/state.py`: `DebateConfig`, `ModelConfig`, `DebateStatus`, `OrchestratorState`
+- `src/duelyst_ai_core/agents/schemas.py`: public Pydantic models such as `AgentResponse`, `DebateTurn`, `JudgeSynthesis`, and `DebateResult`
 
-- `RichTerminalFormatter` — Rich panels with colors
-- `MarkdownFormatter` — headers, quotes, evidence lists
-- `JsonFormatter` — Pydantic model serialization
+Important detail: `OrchestratorState.turns` uses `Annotated[..., operator.add]`, so nodes append turn deltas
+instead of replacing the full list.
 
-### CLI
+### Events, Callbacks, And Streaming
 
-Typer-based CLI (`cli/main.py`) with `debate` command, Rich live display (`cli/display.py`), supports all output formats.
+- `src/duelyst_ai_core/orchestrator/events.py`: typed runtime events
+- `src/duelyst_ai_core/orchestrator/callbacks.py`: `DebateEventCallback`, `NullCallback`, `CollectorCallback`
+- `DebateOrchestrator.arun_with_events()`: async generator API built on an `asyncio.Queue`
 
-## Tech Stack
+The core emits debate lifecycle events so the CLI, tests, or a future API server can observe progress without
+coupling orchestration to a transport layer.
 
-- **Python 3.11+**
-- **LangGraph 1.1+** — orchestrator graph
-- **LangChain 1.2+** — agent factory (`create_agent`), model adapters, tool abstractions
-- **Pydantic 2.12+** — data models and validation
-- **Typer** — CLI framework
-- **Rich** — terminal output formatting
-- **pytest** — testing
+Key nuance: `DebateCompleted` and `DebateError` are terminal wrapper events produced by `arun_with_events()`,
+not graph-node events.
 
-## Coding Conventions
+### CLI And Live Display
 
-- **Type hints everywhere** — Pydantic models for data structures, type annotations for all function signatures.
-- **Docstrings** — Google style. Every public class and function.
-- **Error handling** — never swallow exceptions silently. Catch, log, and re-raise with context.
-- **No print statements** — use `logging` module or Rich console.
-- **Async where appropriate** — LLM calls and tool execution are async.
-- **Tests** — pytest. Mock LLM APIs in unit tests. Integration tests in separate folder with `@pytest.mark.integration`.
-- **LangGraph runtime types** — types in TypedDict state fields must be runtime imports (not behind `TYPE_CHECKING`).
+- `src/duelyst_ai_core/cli/main.py`: Typer entry point
+- `src/duelyst_ai_core/cli/display.py`: debate runner and output-mode switch
+- `src/duelyst_ai_core/cli/live_panel.py`: `RichDisplayCallback` that turns events into a live Rich UI
 
-## Key Design Decisions
+`--output rich` uses the live callback-driven display. Markdown and JSON output skip live rendering and use a
+simple spinner before formatting the final `DebateResult`.
 
-1. **Agents use `create_agent`** — prebuilt ReAct agent factory. No custom multi-node agent graphs.
-2. **No custom adapter layer** — LangChain's `BaseChatModel` is the interface.
-3. **No BaseAgent ABC** — each agent is ~20 lines, abstraction unnecessary.
-4. **System prompts are static** — user input goes in user message, never system prompt.
-5. **Structured output** — `response_format` parameter, output in `state["structured_response"]`.
-6. **Tools are optional** — debates work without tools.
-7. **Product-independent** — no users, billing, or persistence.
-8. **Orchestrator state is source of truth** — agents use `MessagesState` internally.
+### Model And Tool Layer
 
-## Current Status
+- `src/duelyst_ai_core/models/registry.py`: `resolve_alias()`, `create_model()`, `get_judge_model()`
+- `src/duelyst_ai_core/tools/search.py`: optional Tavily search tool with graceful degradation
 
-**Phase 1: Complete** — All deliverables implemented. 154 tests passing. Ruff, mypy clean.
+There is no custom adapter class hierarchy. The model registry returns LangChain chat models directly.
+
+## Important Design Decisions
+
+1. Agents use `create_agent()` rather than custom multi-node agent graphs.
+2. The orchestrator is small and explicit; the complexity lives in state and event flow.
+3. Structured output is the public contract, not raw model text.
+4. Tools are optional and should never be required for a debate to run.
+5. Callback failures are logged and swallowed so observers do not break debate execution.
+6. The package exports streaming types and callbacks as part of the public API.
+
+## Testing And Validation
+
+Local commands should mirror CI:
+
+```bash
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
+uv run mypy src/
+uv run pytest -v
+```
+
+Test strategy:
+
+- unit tests mock model creation and agent `ainvoke()` calls
+- callback and streaming tests validate event order and terminal behavior
+- CLI tests validate live vs non-live execution paths
+- integration tests live under `tests/integration/` and are separate from the default test run
+
+## GitHub Actions And Publishing
+
+Workflow files:
+
+- `.github/workflows/ci.yml`: Ruff, format check, mypy, and pytest on push/PR
+- `.github/workflows/publish.yml`: reruns the quality gate on version tags, verifies tag/version alignment, builds the package, smoke-tests the wheel in a clean virtualenv, publishes to PyPI, and creates a GitHub Release
+- `.github/release.yml`: release-note categories
+
+Release flow:
+
+1. bump `project.version` in `pyproject.toml`
+2. run local checks
+3. push to `main`
+4. push a tag like `v0.1.0`
+
+## Documentation To Keep In Sync
+
+- `README.md`: public-facing usage and release overview
+- `docs/ARCHITECTURE.md`: detailed guided architecture walkthrough
+- `docs/graph.png`: combined architecture diagram used by the README and architecture doc
+
+When architecture changes, update the code and these docs together.

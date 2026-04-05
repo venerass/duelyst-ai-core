@@ -116,6 +116,46 @@ result = asyncio.run(orchestrator.graph.ainvoke({
 # result["turns"] contains the full debate transcript
 ```
 
+### Streaming Events
+
+Stream real-time events as the debate progresses using `arun_with_events()`:
+
+```python
+import asyncio
+from duelyst_ai_core import DebateConfig, DebateOrchestrator, ModelConfig
+
+config = DebateConfig(
+    topic="Will AI replace software engineers by 2030?",
+    model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+    model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
+)
+
+async def main():
+    orchestrator = DebateOrchestrator(config)
+    async for event in orchestrator.arun_with_events():
+        print(f"{event.event}: {event}")
+
+asyncio.run(main())
+```
+
+Events emitted: `debate_started`, `round_started`, `turn_started`, `turn_completed`,
+`convergence_update`, `synthesis_started`, `synthesis_completed`, `debate_completed`.
+
+For custom consumers (e.g., SSE relay), implement the `DebateEventCallback` protocol:
+
+```python
+from duelyst_ai_core import DebateEventCallback, DebateOrchestrator
+
+class MyCallback:
+    async def on_event(self, event):
+        # SSE, WebSocket, logging, etc.
+        print(event.model_dump_json())
+
+orchestrator = DebateOrchestrator(config, callback=MyCallback())
+```
+
+See [`examples/`](examples/) for more complete examples.
+
 ## Supported Models
 
 | Alias | Provider | Model |
@@ -162,6 +202,19 @@ init_debate ──> run_debater_a ──> run_debater_b ──> check_convergenc
 - **Orchestrator** — LangGraph `StateGraph` managing turn alternation, convergence tracking, and judge invocation
 - **Model registry** — factory functions mapping aliases to LangChain `BaseChatModel` instances
 - **Tools** — optional LangChain tools (Tavily web search) that agents invoke autonomously during debates
+
+### Architecture Diagram
+
+![Duelyst.ai Core architecture diagram](docs/graph.png)
+
+The diagram shows the outer debate orchestrator and the two `create_agent()`-based
+sub-agents on the same image. The orchestrator portion matches the real LangGraph
+topology exactly. The sub-agent boxes are intentionally conceptual: they summarize
+the model/tool loop that LangChain builds internally so the parts owned by this
+repository are easier to study.
+
+For the full walkthrough of agents, state, events, callbacks, streaming, async
+execution, GitHub Actions, and PyPI publishing, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## CLI Options
 
@@ -216,6 +269,20 @@ uv run mypy src
 uv run ruff check src tests && uv run ruff format --check src tests && uv run mypy src && uv run pytest
 ```
 
+### CI and Release
+
+GitHub Actions mirrors the same validation path used locally:
+
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs Ruff, format checks, mypy, and pytest on pushes and pull requests.
+- [`.github/workflows/publish.yml`](.github/workflows/publish.yml) reruns the quality gate on version tags, verifies the tag matches [`pyproject.toml`](pyproject.toml), builds the package, smoke-tests wheel install/import in a clean virtualenv, publishes to PyPI with trusted publishing, and creates a GitHub Release.
+
+Release flow:
+
+1. Bump `project.version` in [`pyproject.toml`](pyproject.toml).
+2. Run the local checks above.
+3. Push the commit to `main`.
+4. Push a tag like `v0.1.0` to trigger the publish workflow.
+
 ### Project Structure
 
 ```
@@ -233,7 +300,8 @@ src/duelyst_ai_core/
 │   ├── engine.py            # DebateOrchestrator (LangGraph StateGraph)
 │   ├── state.py             # OrchestratorState, DebateConfig, ModelConfig
 │   ├── convergence.py       # Convergence detection logic
-│   └── events.py            # Streaming event types
+│   ├── events.py            # Streaming event types
+│   └── callbacks.py         # DebateEventCallback protocol + implementations
 ├── tools/
 │   ├── __init__.py          # create_search_tool(), is_search_available()
 │   └── search.py            # Tavily web search integration
@@ -245,7 +313,8 @@ src/duelyst_ai_core/
 │   └── rich_terminal.py     # Rich terminal output with panels and colors
 └── cli/
     ├── main.py              # Typer CLI entry point
-    └── display.py           # Rich live display for debate progress
+    ├── display.py           # Rich live display for debate progress
+    └── live_panel.py        # Rich display callback for real-time updates
 ```
 
 ## License

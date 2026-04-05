@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from duelyst_ai_core.agents.schemas import AgentResponse, JudgeSynthesis
+from duelyst_ai_core.orchestrator.callbacks import CollectorCallback
 from duelyst_ai_core.orchestrator.engine import DebateOrchestrator
 from duelyst_ai_core.orchestrator.state import (
     DebateConfig,
@@ -68,7 +69,10 @@ def _make_judge_result(synthesis: JudgeSynthesis) -> dict[str, object]:
     return {"structured_response": synthesis}
 
 
-def _create_orchestrator(config: DebateConfig) -> DebateOrchestrator:
+def _create_orchestrator(
+    config: DebateConfig,
+    callback: CollectorCallback | None = None,
+) -> DebateOrchestrator:
     """Create an orchestrator with mocked models."""
     with (
         patch("duelyst_ai_core.orchestrator.engine.create_model") as mock_create,
@@ -76,11 +80,11 @@ def _create_orchestrator(config: DebateConfig) -> DebateOrchestrator:
     ):
         mock_create.return_value = MagicMock()
         mock_judge.return_value = ModelConfig(provider="google", model_id="gemini-2.5-flash")
-        return DebateOrchestrator(config)
+        return DebateOrchestrator(config, callback=callback)
 
 
 class TestOrchestratorInitDebate:
-    def test_sets_initial_state(self, debate_config: DebateConfig) -> None:
+    async def test_sets_initial_state(self, debate_config: DebateConfig) -> None:
         state: OrchestratorState = {
             "config": debate_config,
             "turns": [],
@@ -91,7 +95,8 @@ class TestOrchestratorInitDebate:
             "synthesis": None,
             "error": None,
         }
-        result = DebateOrchestrator.init_debate(state)
+        orchestrator = _create_orchestrator(debate_config)
+        result = await orchestrator.init_debate(state)
 
         assert result["current_round"] == 1
         assert result["status"] == DebateStatus.RUNNING
@@ -100,7 +105,7 @@ class TestOrchestratorInitDebate:
 
 
 class TestOrchestratorCheckConvergence:
-    def test_not_converged(self, debate_config: DebateConfig) -> None:
+    async def test_not_converged(self, debate_config: DebateConfig) -> None:
         """When scores are below threshold, continues."""
         state: OrchestratorState = {
             "config": debate_config,
@@ -125,12 +130,12 @@ class TestOrchestratorCheckConvergence:
         }
 
         orchestrator = _create_orchestrator(debate_config)
-        result = orchestrator.check_convergence(state)
+        result = await orchestrator.check_convergence(state)
 
         assert result.get("current_round") == 2
         assert "status" not in result or result["status"] == DebateStatus.RUNNING
 
-    def test_max_rounds_reached(self, debate_config: DebateConfig) -> None:
+    async def test_max_rounds_reached(self, debate_config: DebateConfig) -> None:
         """When at max rounds, triggers judge."""
         state: OrchestratorState = {
             "config": debate_config,
@@ -155,7 +160,7 @@ class TestOrchestratorCheckConvergence:
         }
 
         orchestrator = _create_orchestrator(debate_config)
-        result = orchestrator.check_convergence(state)
+        result = await orchestrator.check_convergence(state)
 
         assert result["status"] == DebateStatus.MAX_ROUNDS
 
@@ -251,3 +256,107 @@ class TestOrchestratorFullGraph:
         orchestrator._debater_a.graph.ainvoke.assert_awaited_once()
         orchestrator._debater_b.graph.ainvoke.assert_awaited_once()
         orchestrator._judge.graph.ainvoke.assert_awaited_once()
+
+
+class TestOrchestratorEventEmission:
+    async def test_full_graph_emits_events_in_order(
+        self,
+        mock_response_a: AgentResponse,
+        mock_response_b: AgentResponse,
+        mock_synthesis: JudgeSynthesis,
+    ) -> None:
+        """Run a single-round debate and verify event emission order."""
+        config = DebateConfig(
+            topic="Test topic",
+            model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+            model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
+            max_rounds=1,
+        )
+
+        collector = CollectorCallback()
+        orchestrator = _create_orchestrator(config, callback=collector)
+
+        orchestrator._debater_a.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_a)
+        )
+        orchestrator._debater_b.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_b)
+        )
+        orchestrator._judge.graph.ainvoke = AsyncMock(
+            return_value=_make_judge_result(mock_synthesis)
+        )
+
+        initial_state = {
+            "config": config,
+            "turns": [],
+            "current_round": 0,
+            "current_agent": "a",
+            "convergence_history": [],
+            "status": DebateStatus.RUNNING,
+            "synthesis": None,
+            "error": None,
+        }
+
+        await orchestrator.graph.ainvoke(initial_state)
+
+        event_types = [e.event for e in collector.events]
+        assert event_types == [
+            "debate_started",
+            "round_started",  # round 1
+            "turn_started",  # agent a
+            "turn_completed",  # agent a
+            "turn_started",  # agent b
+            "turn_completed",  # agent b
+            "convergence_update",
+            "synthesis_started",
+            "synthesis_completed",
+        ]
+
+    async def test_callback_error_does_not_crash_debate(
+        self,
+        mock_response_a: AgentResponse,
+        mock_response_b: AgentResponse,
+        mock_synthesis: JudgeSynthesis,
+    ) -> None:
+        """A buggy callback should not prevent the debate from completing."""
+
+        class BuggyCallback:
+            async def on_event(self, event: object) -> None:
+                msg = "callback error"
+                raise RuntimeError(msg)
+
+        config = DebateConfig(
+            topic="Test topic",
+            model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+            model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
+            max_rounds=1,
+        )
+
+        orchestrator = _create_orchestrator(config, callback=BuggyCallback())  # type: ignore[arg-type]
+
+        orchestrator._debater_a.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_a)
+        )
+        orchestrator._debater_b.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_b)
+        )
+        orchestrator._judge.graph.ainvoke = AsyncMock(
+            return_value=_make_judge_result(mock_synthesis)
+        )
+
+        initial_state = {
+            "config": config,
+            "turns": [],
+            "current_round": 0,
+            "current_agent": "a",
+            "convergence_history": [],
+            "status": DebateStatus.RUNNING,
+            "synthesis": None,
+            "error": None,
+        }
+
+        result = await orchestrator.graph.ainvoke(initial_state)
+
+        # Debate should still complete despite buggy callback
+        assert len(result["turns"]) == 2
+        assert result["synthesis"] is mock_synthesis

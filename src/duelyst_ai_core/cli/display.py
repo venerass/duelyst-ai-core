@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from rich.live import Live
 from rich.panel import Panel
 from rich.status import Status
 
 from duelyst_ai_core.agents.schemas import DebateMetadata, DebateResult
+from duelyst_ai_core.cli.live_panel import RichDisplayCallback
 from duelyst_ai_core.exceptions import ConfigError, ToolError
 from duelyst_ai_core.orchestrator.engine import DebateOrchestrator
 from duelyst_ai_core.orchestrator.state import ToolType
@@ -46,11 +48,18 @@ class DebateDisplay:
             )
         )
 
-    async def run_debate(self, config: DebateConfig) -> DebateResult:
+    async def run_debate(
+        self,
+        config: DebateConfig,
+        *,
+        live: bool = True,
+    ) -> DebateResult:
         """Run the debate with live progress display.
 
         Args:
             config: The debate configuration.
+            live: If True, show a real-time Rich Live display.
+                  If False, use a simple spinner (for markdown/json output).
 
         Returns:
             The complete DebateResult.
@@ -68,23 +77,21 @@ class DebateDisplay:
                     f"{exc}. Continuing without search.[/yellow]"
                 )
 
-        # Create orchestrator
-        orchestrator = DebateOrchestrator(config, tools=tools or None)
+        initial_state = {
+            "config": config,
+            "turns": [],
+            "current_round": 0,
+            "current_agent": "a",
+            "convergence_history": [],
+            "status": "running",
+            "synthesis": None,
+            "error": None,
+        }
 
-        # Run with status spinner
-        with Status("[bold]Running debate...[/bold]", console=self._console, spinner="dots"):
-            initial_state = {
-                "config": config,
-                "turns": [],
-                "current_round": 0,
-                "current_agent": "a",
-                "convergence_history": [],
-                "status": "running",
-                "synthesis": None,
-                "error": None,
-            }
-
-            result = await orchestrator.graph.ainvoke(initial_state)
+        if live:
+            result = await self._run_live(config, tools, initial_state)
+        else:
+            result = await self._run_simple(config, tools, initial_state)
 
         finished_at = datetime.now(UTC)
         duration = (finished_at - started_at).total_seconds()
@@ -117,3 +124,40 @@ class DebateDisplay:
             total_rounds=result["current_round"],
             metadata=metadata,
         )
+
+    async def _run_live(
+        self,
+        config: DebateConfig,
+        tools: list[Any],
+        initial_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Run the debate with Rich Live display driven by event callbacks."""
+        callback = RichDisplayCallback()
+        orchestrator = DebateOrchestrator(config, tools=tools or None, callback=callback)
+
+        with Live(callback.build(), console=self._console, refresh_per_second=8) as live_display:
+
+            async def _updating_callback(event: object) -> None:
+                await callback.on_event(event)  # type: ignore[arg-type]
+                live_display.update(callback.build())
+
+            # Replace the orchestrator's callback with one that also refreshes Live
+            orchestrator._callback = type(
+                "_LiveUpdatingCallback",
+                (),
+                {"on_event": staticmethod(_updating_callback)},
+            )()
+
+            return await orchestrator.graph.ainvoke(initial_state)
+
+    async def _run_simple(
+        self,
+        config: DebateConfig,
+        tools: list[Any],
+        initial_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Run the debate with a simple spinner (no live updating)."""
+        orchestrator = DebateOrchestrator(config, tools=tools or None)
+
+        with Status("[bold]Running debate...[/bold]", console=self._console, spinner="dots"):
+            return await orchestrator.graph.ainvoke(initial_state)

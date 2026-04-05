@@ -283,7 +283,7 @@ def debate(
     display.show_config(config)
 
     try:
-        result = asyncio.run(display.run_debate(config))
+        result = asyncio.run(display.run_debate(config, live=(output == OutputFormat.RICH)))
     except DuelystError as e:
         console.print(f"\n[red]Debate error:[/red] {e}")
         raise typer.Exit(code=1) from None
