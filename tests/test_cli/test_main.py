@@ -150,7 +150,9 @@ class TestCLIDebateCommand:
         assert "pydantic v1" not in plain.lower()
 
     def test_debate_subcommand_runs(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def fake_run_debate(self: DebateDisplay, config: object) -> object:
+        async def fake_run_debate(
+            self: DebateDisplay, config: object, *, live: bool = True
+        ) -> object:
             return SimpleNamespace(status="converged")
 
         def fake_load_dotenv(

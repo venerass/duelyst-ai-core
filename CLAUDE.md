@@ -143,7 +143,8 @@ duelyst-ai-core/
 │       │   ├── engine.py            # DebateOrchestrator (LangGraph StateGraph)
 │       │   ├── state.py             # OrchestratorState, DebateConfig, ModelConfig
 │       │   ├── convergence.py       # check_convergence() pure function
-│       │   └── events.py            # Streaming event types
+│       │   ├── events.py            # Streaming event types
+│       │   └── callbacks.py         # DebateEventCallback protocol + NullCallback, CollectorCallback
 │       ├── tools/
 │       │   ├── __init__.py          # create_search_tool(), is_search_available()
 │       │   └── search.py            # Tavily web search integration
@@ -156,7 +157,8 @@ duelyst-ai-core/
 │       └── cli/
 │           ├── __init__.py
 │           ├── main.py              # Typer CLI entry point
-│           └── display.py           # Rich live display for debate progress
+│           ├── display.py           # Rich live display for debate progress
+│           └── live_panel.py        # RichDisplayCallback for real-time updates
 ├── tests/
 │   ├── conftest.py                  # Shared fixtures (sample_config, sample_debate_result)
 │   ├── test_agents/                 # test_debater.py, test_judge.py, test_prompts.py

@@ -51,14 +51,35 @@ if TYPE_CHECKING:
         RichTerminalFormatter,
     )
     from duelyst_ai_core.models.registry import create_model, get_judge_model, resolve_alias
+    from duelyst_ai_core.orchestrator.callbacks import (
+        CollectorCallback,
+        DebateEventCallback,
+    )
     from duelyst_ai_core.orchestrator.engine import DebateOrchestrator
+    from duelyst_ai_core.orchestrator.events import (
+        ConvergenceUpdate,
+        DebateCompleted,
+        DebateError,
+        DebateEvent,
+        DebateStarted,
+        RoundStarted,
+        SynthesisCompleted,
+        TurnCompleted,
+    )
     from duelyst_ai_core.orchestrator.state import DebateConfig, ModelConfig
 
 __all__ = [
     "AgentResponse",
+    "CollectorCallback",
+    "ConvergenceUpdate",
+    "DebateCompleted",
     "DebateConfig",
+    "DebateError",
+    "DebateEvent",
+    "DebateEventCallback",
     "DebateOrchestrator",
     "DebateResult",
+    "DebateStarted",
     "DebateTurn",
     "Evidence",
     "JsonFormatter",
@@ -66,6 +87,9 @@ __all__ = [
     "MarkdownFormatter",
     "ModelConfig",
     "RichTerminalFormatter",
+    "RoundStarted",
+    "SynthesisCompleted",
+    "TurnCompleted",
     "create_model",
     "get_judge_model",
     "resolve_alias",
@@ -73,9 +97,16 @@ __all__ = [
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "AgentResponse": ("duelyst_ai_core.agents.schemas", "AgentResponse"),
+    "CollectorCallback": ("duelyst_ai_core.orchestrator.callbacks", "CollectorCallback"),
+    "ConvergenceUpdate": ("duelyst_ai_core.orchestrator.events", "ConvergenceUpdate"),
+    "DebateCompleted": ("duelyst_ai_core.orchestrator.events", "DebateCompleted"),
     "DebateConfig": ("duelyst_ai_core.orchestrator.state", "DebateConfig"),
+    "DebateError": ("duelyst_ai_core.orchestrator.events", "DebateError"),
+    "DebateEvent": ("duelyst_ai_core.orchestrator.events", "DebateEvent"),
+    "DebateEventCallback": ("duelyst_ai_core.orchestrator.callbacks", "DebateEventCallback"),
     "DebateOrchestrator": ("duelyst_ai_core.orchestrator.engine", "DebateOrchestrator"),
     "DebateResult": ("duelyst_ai_core.agents.schemas", "DebateResult"),
+    "DebateStarted": ("duelyst_ai_core.orchestrator.events", "DebateStarted"),
     "DebateTurn": ("duelyst_ai_core.agents.schemas", "DebateTurn"),
     "Evidence": ("duelyst_ai_core.agents.schemas", "Evidence"),
     "JsonFormatter": ("duelyst_ai_core.formatters", "JsonFormatter"),
@@ -83,6 +114,9 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "MarkdownFormatter": ("duelyst_ai_core.formatters", "MarkdownFormatter"),
     "ModelConfig": ("duelyst_ai_core.orchestrator.state", "ModelConfig"),
     "RichTerminalFormatter": ("duelyst_ai_core.formatters", "RichTerminalFormatter"),
+    "RoundStarted": ("duelyst_ai_core.orchestrator.events", "RoundStarted"),
+    "SynthesisCompleted": ("duelyst_ai_core.orchestrator.events", "SynthesisCompleted"),
+    "TurnCompleted": ("duelyst_ai_core.orchestrator.events", "TurnCompleted"),
     "create_model": ("duelyst_ai_core.models.registry", "create_model"),
     "get_judge_model": ("duelyst_ai_core.models.registry", "get_judge_model"),
     "resolve_alias": ("duelyst_ai_core.models.registry", "resolve_alias"),
