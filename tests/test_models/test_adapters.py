@@ -1,17 +1,13 @@
-"""Tests for model adapters — Anthropic, OpenAI, Google."""
+"""Tests for model creation — verify correct LangChain models are instantiated."""
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
 
-from duelyst_ai_core.agents.schemas import Evidence
-from duelyst_ai_core.exceptions import ConfigError, ModelError
-from duelyst_ai_core.models.anthropic import AnthropicAdapter
-from duelyst_ai_core.models.google import GoogleAdapter
-from duelyst_ai_core.models.openai import OpenAIAdapter
+from duelyst_ai_core.exceptions import ConfigError
+from duelyst_ai_core.models.registry import create_model
 from duelyst_ai_core.orchestrator.state import ModelConfig
 
 # ---------------------------------------------------------------------------
@@ -34,258 +30,107 @@ def google_config() -> ModelConfig:
     return ModelConfig(provider="google", model_id="gemini-2.5-pro")
 
 
-@pytest.fixture
-def sample_messages() -> list[HumanMessage]:
-    return [HumanMessage(content="What is the meaning of life?")]
-
-
 # ---------------------------------------------------------------------------
-# AnthropicAdapter
+# Anthropic
 # ---------------------------------------------------------------------------
 
 
-class TestAnthropicAdapter:
+class TestCreateAnthropic:
     def test_missing_api_key(self, anthropic_config: ModelConfig) -> None:
         with (
             patch.dict("os.environ", {}, clear=True),
             pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"),
         ):
-            AnthropicAdapter(anthropic_config)
+            create_model(anthropic_config)
 
-    @patch("duelyst_ai_core.models.anthropic.ChatAnthropic")
-    def test_creation(
+    def test_creates_chat_anthropic(
         self,
-        mock_chat: MagicMock,
         anthropic_config: ModelConfig,
     ) -> None:
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            adapter = AnthropicAdapter(anthropic_config)
-        assert adapter.provider == "anthropic"
-        assert adapter.model_id == "claude-sonnet-4-20250514"
-        mock_chat.assert_called_once()
+        mock_chat = MagicMock()
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}),
+            patch("langchain_anthropic.ChatAnthropic", mock_chat),
+        ):
+            model = create_model(anthropic_config)
 
-    @patch("duelyst_ai_core.models.anthropic.ChatAnthropic")
-    async def test_generate(
-        self,
-        mock_chat_cls: MagicMock,
-        anthropic_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(
-            return_value=AIMessage(content="42"),
+        assert model is mock_chat.return_value
+        mock_chat.assert_called_once_with(
+            model="claude-sonnet-4-20250514",
+            temperature=0.7,
+            max_tokens=4096,
+            api_key="test-key",
         )
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            adapter = AnthropicAdapter(anthropic_config)
-
-        result = await adapter.generate(sample_messages, "You are helpful.")
-        assert result.content == "42"
-        mock_llm.ainvoke.assert_awaited_once()
-
-    @patch("duelyst_ai_core.models.anthropic.ChatAnthropic")
-    async def test_generate_structured(
-        self,
-        mock_chat_cls: MagicMock,
-        anthropic_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        expected = Evidence(claim="Test claim", source_type="reasoning")
-
-        mock_structured = MagicMock()
-        mock_structured.ainvoke = AsyncMock(return_value=expected)
-
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            adapter = AnthropicAdapter(anthropic_config)
-
-        result = await adapter.generate_structured(sample_messages, "System", Evidence)
-        assert result == expected
-        mock_llm.with_structured_output.assert_called_once_with(Evidence)
-
-    @patch("duelyst_ai_core.models.anthropic.ChatAnthropic")
-    async def test_generate_api_error(
-        self,
-        mock_chat_cls: MagicMock,
-        anthropic_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(side_effect=RuntimeError("API timeout"))
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-            adapter = AnthropicAdapter(anthropic_config)
-
-        with pytest.raises(ModelError, match="Anthropic API call failed"):
-            await adapter.generate(sample_messages, "System")
 
 
 # ---------------------------------------------------------------------------
-# OpenAIAdapter
+# OpenAI
 # ---------------------------------------------------------------------------
 
 
-class TestOpenAIAdapter:
+class TestCreateOpenAI:
     def test_missing_api_key(self, openai_config: ModelConfig) -> None:
         with (
             patch.dict("os.environ", {}, clear=True),
             pytest.raises(ConfigError, match="OPENAI_API_KEY"),
         ):
-            OpenAIAdapter(openai_config)
+            create_model(openai_config)
 
-    @patch("duelyst_ai_core.models.openai.ChatOpenAI")
-    def test_creation(
-        self,
-        mock_chat: MagicMock,
-        openai_config: ModelConfig,
-    ) -> None:
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-            adapter = OpenAIAdapter(openai_config)
-        assert adapter.provider == "openai"
-        assert adapter.model_id == "gpt-4o"
+    def test_creates_chat_openai(self, openai_config: ModelConfig) -> None:
+        mock_chat = MagicMock()
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}),
+            patch("langchain_openai.ChatOpenAI", mock_chat),
+        ):
+            model = create_model(openai_config)
 
-    @patch("duelyst_ai_core.models.openai.ChatOpenAI")
-    async def test_generate(
-        self,
-        mock_chat_cls: MagicMock,
-        openai_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(
-            return_value=AIMessage(content="Hello"),
+        assert model is mock_chat.return_value
+        mock_chat.assert_called_once_with(
+            model="gpt-4o",
+            temperature=0.7,
+            max_tokens=4096,
+            api_key="test-key",
         )
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-            adapter = OpenAIAdapter(openai_config)
-
-        result = await adapter.generate(sample_messages, "System")
-        assert result.content == "Hello"
-
-    @patch("duelyst_ai_core.models.openai.ChatOpenAI")
-    async def test_generate_structured(
-        self,
-        mock_chat_cls: MagicMock,
-        openai_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        expected = Evidence(claim="Test", source_type="web", source="https://x.com")
-
-        mock_structured = MagicMock()
-        mock_structured.ainvoke = AsyncMock(return_value=expected)
-
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-            adapter = OpenAIAdapter(openai_config)
-
-        result = await adapter.generate_structured(sample_messages, "System", Evidence)
-        assert result == expected
-
-    @patch("duelyst_ai_core.models.openai.ChatOpenAI")
-    async def test_generate_api_error(
-        self,
-        mock_chat_cls: MagicMock,
-        openai_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(side_effect=RuntimeError("Rate limited"))
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-            adapter = OpenAIAdapter(openai_config)
-
-        with pytest.raises(ModelError, match="OpenAI API call failed"):
-            await adapter.generate(sample_messages, "System")
 
 
 # ---------------------------------------------------------------------------
-# GoogleAdapter
+# Google
 # ---------------------------------------------------------------------------
 
 
-class TestGoogleAdapter:
+class TestCreateGoogle:
     def test_missing_api_key(self, google_config: ModelConfig) -> None:
         with (
             patch.dict("os.environ", {}, clear=True),
             pytest.raises(ConfigError, match="GOOGLE_API_KEY"),
         ):
-            GoogleAdapter(google_config)
+            create_model(google_config)
 
-    @patch("duelyst_ai_core.models.google.ChatGoogleGenerativeAI")
-    def test_creation(
-        self,
-        mock_chat: MagicMock,
-        google_config: ModelConfig,
-    ) -> None:
-        with patch.dict("os.environ", {"GOOGLE_API_KEY": "test-key"}):
-            adapter = GoogleAdapter(google_config)
-        assert adapter.provider == "google"
-        assert adapter.model_id == "gemini-2.5-pro"
+    def test_creates_chat_google(self, google_config: ModelConfig) -> None:
+        mock_chat = MagicMock()
+        with (
+            patch.dict("os.environ", {"GOOGLE_API_KEY": "test-key"}),
+            patch("langchain_google_genai.ChatGoogleGenerativeAI", mock_chat),
+        ):
+            model = create_model(google_config)
 
-    @patch("duelyst_ai_core.models.google.ChatGoogleGenerativeAI")
-    async def test_generate(
-        self,
-        mock_chat_cls: MagicMock,
-        google_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(
-            return_value=AIMessage(content="Gemini says hi"),
+        assert model is mock_chat.return_value
+        mock_chat.assert_called_once_with(
+            model="gemini-2.5-pro",
+            temperature=0.7,
+            max_output_tokens=4096,
+            google_api_key="test-key",
         )
-        mock_chat_cls.return_value = mock_llm
 
-        with patch.dict("os.environ", {"GOOGLE_API_KEY": "test-key"}):
-            adapter = GoogleAdapter(google_config)
 
-        result = await adapter.generate(sample_messages, "System")
-        assert result.content == "Gemini says hi"
+# ---------------------------------------------------------------------------
+# Unsupported provider
+# ---------------------------------------------------------------------------
 
-    @patch("duelyst_ai_core.models.google.ChatGoogleGenerativeAI")
-    async def test_generate_structured(
-        self,
-        mock_chat_cls: MagicMock,
-        google_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        expected = Evidence(claim="Test", source_type="reasoning")
 
-        mock_structured = MagicMock()
-        mock_structured.ainvoke = AsyncMock(return_value=expected)
-
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"GOOGLE_API_KEY": "test-key"}):
-            adapter = GoogleAdapter(google_config)
-
-        result = await adapter.generate_structured(sample_messages, "System", Evidence)
-        assert result == expected
-
-    @patch("duelyst_ai_core.models.google.ChatGoogleGenerativeAI")
-    async def test_generate_api_error(
-        self,
-        mock_chat_cls: MagicMock,
-        google_config: ModelConfig,
-        sample_messages: list[HumanMessage],
-    ) -> None:
-        mock_llm = MagicMock()
-        mock_llm.ainvoke = AsyncMock(side_effect=RuntimeError("Quota exceeded"))
-        mock_chat_cls.return_value = mock_llm
-
-        with patch.dict("os.environ", {"GOOGLE_API_KEY": "test-key"}):
-            adapter = GoogleAdapter(google_config)
-
-        with pytest.raises(ModelError, match="Google API call failed"):
-            await adapter.generate(sample_messages, "System")
+class TestUnsupportedProvider:
+    def test_unsupported_provider(self) -> None:
+        config = MagicMock()
+        config.provider = "mistral"
+        with pytest.raises(ConfigError, match="Unsupported provider"):
+            create_model(config)

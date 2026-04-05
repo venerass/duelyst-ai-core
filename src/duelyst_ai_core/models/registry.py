@@ -1,17 +1,23 @@
-"""Model registry — factory for creating adapters and judge auto-selection."""
+"""Model registry — factory for creating LangChain chat models and judge auto-selection.
+
+This module replaces the adapter pattern with direct LangChain chat model
+creation. Consumer code receives a BaseChatModel and uses LangChain's native
+methods (with_structured_output, bind_tools, etc.) directly.
+"""
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING
 
 from duelyst_ai_core.exceptions import ConfigError
-from duelyst_ai_core.models.anthropic import AnthropicAdapter
-from duelyst_ai_core.models.google import GoogleAdapter
-from duelyst_ai_core.models.openai import OpenAIAdapter
 
 if TYPE_CHECKING:
-    from duelyst_ai_core.models.base import BaseModelAdapter
+    from collections.abc import Callable
+
+    from langchain_core.language_models import BaseChatModel
+
     from duelyst_ai_core.orchestrator.state import ModelConfig
 
 logger = logging.getLogger(__name__)
@@ -32,18 +38,69 @@ MODEL_ALIASES: dict[str, tuple[str, str]] = {
     "gemini-flash": ("google", "gemini-2.5-flash"),
 }
 
-# Provider → adapter class mapping
-_ADAPTER_CLASSES: dict[str, type[BaseModelAdapter]] = {
-    "anthropic": AnthropicAdapter,
-    "openai": OpenAIAdapter,
-    "google": GoogleAdapter,
-}
-
 # Default judge models per provider, ordered by preference
 _JUDGE_DEFAULTS: dict[str, str] = {
     "anthropic": "claude-sonnet-4-20250514",
     "openai": "gpt-4o",
     "google": "gemini-2.5-pro",
+}
+
+
+def _create_anthropic(config: ModelConfig) -> BaseChatModel:
+    """Create an Anthropic (Claude) chat model."""
+    from langchain_anthropic import ChatAnthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        msg = "ANTHROPIC_API_KEY environment variable is not set"
+        raise ConfigError(msg)
+
+    return ChatAnthropic(
+        model=config.model_id,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        api_key=api_key,
+    )
+
+
+def _create_openai(config: ModelConfig) -> BaseChatModel:
+    """Create an OpenAI (GPT) chat model."""
+    from langchain_openai import ChatOpenAI
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        msg = "OPENAI_API_KEY environment variable is not set"
+        raise ConfigError(msg)
+
+    return ChatOpenAI(
+        model=config.model_id,
+        temperature=config.temperature,
+        max_tokens=config.max_tokens,
+        api_key=api_key,
+    )
+
+
+def _create_google(config: ModelConfig) -> BaseChatModel:
+    """Create a Google (Gemini) chat model."""
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        msg = "GOOGLE_API_KEY environment variable is not set"
+        raise ConfigError(msg)
+
+    return ChatGoogleGenerativeAI(
+        model=config.model_id,
+        temperature=config.temperature,
+        max_output_tokens=config.max_tokens,
+        google_api_key=api_key,
+    )
+
+
+_PROVIDER_FACTORIES: dict[str, Callable[[ModelConfig], BaseChatModel]] = {
+    "anthropic": _create_anthropic,
+    "openai": _create_openai,
+    "google": _create_google,
 }
 
 
@@ -81,27 +138,31 @@ def resolve_alias(name: str) -> tuple[str, str]:
     raise ConfigError(msg)
 
 
-def create_adapter(config: ModelConfig) -> BaseModelAdapter:
-    """Create a model adapter from a ModelConfig.
+def create_model(config: ModelConfig) -> BaseChatModel:
+    """Create a LangChain chat model from a ModelConfig.
+
+    Returns the native LangChain chat model (ChatAnthropic, ChatOpenAI,
+    ChatGoogleGenerativeAI) directly. Consumer code uses LangChain's
+    built-in methods like with_structured_output() and bind_tools().
 
     Args:
         config: The model configuration.
 
     Returns:
-        An instantiated model adapter.
+        A LangChain BaseChatModel instance.
 
     Raises:
-        ConfigError: If the provider is not supported.
+        ConfigError: If the provider is not supported or API key is missing.
     """
-    adapter_cls = _ADAPTER_CLASSES.get(config.provider)
-    if adapter_cls is None:
+    factory = _PROVIDER_FACTORIES.get(config.provider)
+    if factory is None:
         msg = (
             f"Unsupported provider '{config.provider}'. "
-            f"Supported: {', '.join(sorted(_ADAPTER_CLASSES))}"
+            f"Supported: {', '.join(sorted(_PROVIDER_FACTORIES))}"
         )
         raise ConfigError(msg)
 
-    return adapter_cls(config)
+    return factory(config)
 
 
 def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:

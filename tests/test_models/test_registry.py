@@ -8,7 +8,7 @@ import pytest
 
 from duelyst_ai_core.exceptions import ConfigError
 from duelyst_ai_core.models.registry import (
-    create_adapter,
+    create_model,
     get_judge_model,
     resolve_alias,
 )
@@ -56,49 +56,46 @@ class TestResolveAlias:
 
 
 # ---------------------------------------------------------------------------
-# create_adapter
+# create_model
 # ---------------------------------------------------------------------------
 
 
-class TestCreateAdapter:
+class TestCreateModel:
     def test_create_anthropic(self) -> None:
         config = ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
-        mock_cls = MagicMock()
-        with patch.dict(
-            "duelyst_ai_core.models.registry._ADAPTER_CLASSES",
-            {"anthropic": mock_cls},
+        mock_chat = MagicMock()
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}),
+            patch("langchain_anthropic.ChatAnthropic", mock_chat),
         ):
-            adapter = create_adapter(config)
-        mock_cls.assert_called_once_with(config)
-        assert adapter is mock_cls.return_value
+            model = create_model(config)
+        assert model is mock_chat.return_value
 
     def test_create_openai(self) -> None:
         config = ModelConfig(provider="openai", model_id="gpt-4o")
-        mock_cls = MagicMock()
-        with patch.dict(
-            "duelyst_ai_core.models.registry._ADAPTER_CLASSES",
-            {"openai": mock_cls},
+        mock_chat = MagicMock()
+        with (
+            patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}),
+            patch("langchain_openai.ChatOpenAI", mock_chat),
         ):
-            adapter = create_adapter(config)
-        mock_cls.assert_called_once_with(config)
-        assert adapter is mock_cls.return_value
+            model = create_model(config)
+        assert model is mock_chat.return_value
 
     def test_create_google(self) -> None:
         config = ModelConfig(provider="google", model_id="gemini-2.5-pro")
-        mock_cls = MagicMock()
-        with patch.dict(
-            "duelyst_ai_core.models.registry._ADAPTER_CLASSES",
-            {"google": mock_cls},
+        mock_chat = MagicMock()
+        with (
+            patch.dict("os.environ", {"GOOGLE_API_KEY": "test-key"}),
+            patch("langchain_google_genai.ChatGoogleGenerativeAI", mock_chat),
         ):
-            adapter = create_adapter(config)
-        mock_cls.assert_called_once_with(config)
-        assert adapter is mock_cls.return_value
+            model = create_model(config)
+        assert model is mock_chat.return_value
 
     def test_unsupported_provider(self) -> None:
         config = MagicMock()
         config.provider = "mistral"
         with pytest.raises(ConfigError, match="Unsupported provider"):
-            create_adapter(config)
+            create_model(config)
 
 
 # ---------------------------------------------------------------------------

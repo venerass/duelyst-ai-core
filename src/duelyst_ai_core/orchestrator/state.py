@@ -1,4 +1,9 @@
-"""Debate state schema — configuration, state, and enums for the orchestrator."""
+"""Debate state schemas — configuration and orchestrator state.
+
+The orchestrator state is the single source of truth during a debate.
+Agent subgraphs (debater, judge) use MessagesState internally via
+create_react_agent — no custom agent-level state needed.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +13,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypedDict
+
+# Runtime import: LangGraph resolves TypedDict annotations via get_type_hints()
+from duelyst_ai_core.agents.schemas import JudgeSynthesis  # noqa: TC001
 
 
 class ToolType(StrEnum):
@@ -75,12 +83,16 @@ class DebateStatus(StrEnum):
     ERROR = "error"
 
 
-class DebateState(TypedDict):
-    """LangGraph state object — the single source of truth during a debate.
+# ---------------------------------------------------------------------------
+# Orchestrator state (outer graph)
+# ---------------------------------------------------------------------------
 
-    This is a TypedDict (not a Pydantic model) because LangGraph requires it
-    for state management. The `turns` field uses Annotated with operator.add
-    so that each node appends to the list rather than replacing it.
+
+class OrchestratorState(TypedDict):
+    """Top-level state for the debate orchestrator graph.
+
+    The turns field uses operator.add so each node appends to the list
+    rather than replacing it.
     """
 
     config: DebateConfig
@@ -89,4 +101,5 @@ class DebateState(TypedDict):
     current_agent: Literal["a", "b"]
     convergence_history: list[tuple[int, int]]
     status: DebateStatus
+    synthesis: JudgeSynthesis | None
     error: str | None
