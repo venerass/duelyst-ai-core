@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from typer.testing import CliRunner
 
@@ -10,6 +12,12 @@ from duelyst_ai_core.exceptions import ConfigError
 from duelyst_ai_core.orchestrator.state import ToolType
 
 runner = CliRunner()
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub("", text)
 
 
 class TestParseTools:
@@ -116,7 +124,8 @@ class TestCLIDebateCommand:
     def test_help_flag(self) -> None:
         result = runner.invoke(app, ["debate", "--help"])
         assert result.exit_code == 0
-        assert "topic" in result.output.lower()
-        assert "--model-a" in result.output
-        assert "--model-b" in result.output
-        assert "--output" in result.output
+        plain = _strip_ansi(result.output)
+        assert "topic" in plain.lower()
+        assert "--model-a" in plain
+        assert "--model-b" in plain
+        assert "--output" in plain
