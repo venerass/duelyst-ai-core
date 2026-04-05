@@ -30,7 +30,7 @@ class ModelConfig(BaseModel):
 
     Args:
         provider: The model provider — one of anthropic, openai, google.
-        model_id: Provider-specific model identifier (e.g. "claude-sonnet-4-20250514").
+        model_id: Provider-specific model identifier (e.g. "claude-haiku-4-5").
         temperature: Sampling temperature for generation.
         max_tokens: Maximum tokens in model response.
     """

@@ -24,12 +24,12 @@ from duelyst_ai_core.orchestrator.state import DebateConfig, ModelConfig, ToolTy
 
 @pytest.fixture
 def model_config_anthropic() -> ModelConfig:
-    return ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
+    return ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
 
 
 @pytest.fixture
 def model_config_openai() -> ModelConfig:
-    return ModelConfig(provider="openai", model_id="gpt-4o")
+    return ModelConfig(provider="openai", model_id="gpt-5.4-mini")
 
 
 @pytest.fixture
@@ -93,25 +93,25 @@ def sample_synthesis() -> JudgeSynthesis:
 class TestModelConfig:
     def test_valid_creation(self, model_config_anthropic: ModelConfig) -> None:
         assert model_config_anthropic.provider == "anthropic"
-        assert model_config_anthropic.model_id == "claude-sonnet-4-20250514"
+        assert model_config_anthropic.model_id == "claude-haiku-4-5"
         assert model_config_anthropic.temperature == 0.7
         assert model_config_anthropic.max_tokens == 4096
 
     def test_custom_temperature(self) -> None:
-        config = ModelConfig(provider="openai", model_id="gpt-4o", temperature=0.0)
+        config = ModelConfig(provider="openai", model_id="gpt-5.4-mini", temperature=0.0)
         assert config.temperature == 0.0
 
     def test_temperature_bounds(self) -> None:
         with pytest.raises(ValidationError):
-            ModelConfig(provider="openai", model_id="gpt-4o", temperature=-0.1)
+            ModelConfig(provider="openai", model_id="gpt-5.4-mini", temperature=-0.1)
         with pytest.raises(ValidationError):
-            ModelConfig(provider="openai", model_id="gpt-4o", temperature=2.1)
+            ModelConfig(provider="openai", model_id="gpt-5.4-mini", temperature=2.1)
 
     def test_max_tokens_bounds(self) -> None:
         with pytest.raises(ValidationError):
-            ModelConfig(provider="openai", model_id="gpt-4o", max_tokens=0)
+            ModelConfig(provider="openai", model_id="gpt-5.4-mini", max_tokens=0)
         with pytest.raises(ValidationError):
-            ModelConfig(provider="openai", model_id="gpt-4o", max_tokens=200_000)
+            ModelConfig(provider="openai", model_id="gpt-5.4-mini", max_tokens=200_000)
 
     def test_invalid_provider(self) -> None:
         with pytest.raises(ValidationError):

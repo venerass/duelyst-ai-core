@@ -23,32 +23,37 @@ class TestResolveAlias:
     def test_known_alias(self) -> None:
         provider, model_id = resolve_alias("claude-sonnet")
         assert provider == "anthropic"
-        assert model_id == "claude-sonnet-4-20250514"
+        assert model_id == "claude-sonnet-4-6"
 
     def test_openai_alias(self) -> None:
+        provider, model_id = resolve_alias("gpt-mini")
+        assert provider == "openai"
+        assert model_id == "gpt-5.4-mini"
+
+    def test_legacy_openai_alias(self) -> None:
         provider, model_id = resolve_alias("gpt-4o")
         assert provider == "openai"
         assert model_id == "gpt-4o"
 
     def test_google_alias(self) -> None:
-        provider, model_id = resolve_alias("gemini-pro")
+        provider, model_id = resolve_alias("gemini-flash")
         assert provider == "google"
-        assert model_id == "gemini-2.5-pro"
+        assert model_id == "gemini-2.5-flash"
 
     def test_full_model_id_claude(self) -> None:
-        provider, model_id = resolve_alias("claude-sonnet-4-20250514")
+        provider, model_id = resolve_alias("claude-sonnet-4-6")
         assert provider == "anthropic"
-        assert model_id == "claude-sonnet-4-20250514"
+        assert model_id == "claude-sonnet-4-6"
 
     def test_full_model_id_gpt(self) -> None:
-        provider, model_id = resolve_alias("gpt-4.1-nano")
+        provider, model_id = resolve_alias("gpt-5.4-nano")
         assert provider == "openai"
-        assert model_id == "gpt-4.1-nano"
+        assert model_id == "gpt-5.4-nano"
 
     def test_full_model_id_gemini(self) -> None:
-        provider, model_id = resolve_alias("gemini-2.0-flash")
+        provider, model_id = resolve_alias("gemini-2.5-flash")
         assert provider == "google"
-        assert model_id == "gemini-2.0-flash"
+        assert model_id == "gemini-2.5-flash"
 
     def test_unknown_model(self) -> None:
         with pytest.raises(ConfigError, match="Unknown model"):
@@ -62,7 +67,7 @@ class TestResolveAlias:
 
 class TestCreateModel:
     def test_create_anthropic(self) -> None:
-        config = ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
+        config = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
         mock_chat = MagicMock()
         with (
             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}),
@@ -72,7 +77,7 @@ class TestCreateModel:
         assert model is mock_chat.return_value
 
     def test_create_openai(self) -> None:
-        config = ModelConfig(provider="openai", model_id="gpt-4o")
+        config = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         mock_chat = MagicMock()
         with (
             patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}),
@@ -82,7 +87,7 @@ class TestCreateModel:
         assert model is mock_chat.return_value
 
     def test_create_google(self) -> None:
-        config = ModelConfig(provider="google", model_id="gemini-2.5-pro")
+        config = ModelConfig(provider="google", model_id="gemini-2.5-flash")
         mock_chat = MagicMock()
         with (
             patch.dict("os.environ", {"GOOGLE_API_KEY": "test-key"}),
@@ -106,34 +111,37 @@ class TestCreateModel:
 class TestGetJudgeModel:
     def test_both_same_provider(self) -> None:
         """When both debaters use the same provider, judge picks another."""
-        a = ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
-        b = ModelConfig(provider="anthropic", model_id="claude-opus-4-20250514")
+        a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
+        b = ModelConfig(provider="anthropic", model_id="claude-opus-4-6")
         judge = get_judge_model(a, b)
         assert judge.provider != "anthropic"
         assert judge.provider in ("openai", "google")
 
     def test_different_providers(self) -> None:
         """When debaters use different providers, judge picks the remaining one."""
-        a = ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
-        b = ModelConfig(provider="openai", model_id="gpt-4o")
+        a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
+        b = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         judge = get_judge_model(a, b)
         assert judge.provider == "google"
+        assert judge.model_id == "gemini-2.5-flash"
 
     def test_anthropic_google_gives_openai(self) -> None:
-        a = ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
-        b = ModelConfig(provider="google", model_id="gemini-2.5-pro")
+        a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
+        b = ModelConfig(provider="google", model_id="gemini-2.5-flash")
         judge = get_judge_model(a, b)
         assert judge.provider == "openai"
+        assert judge.model_id == "gpt-5.4-mini"
 
     def test_openai_google_gives_anthropic(self) -> None:
-        a = ModelConfig(provider="openai", model_id="gpt-4o")
-        b = ModelConfig(provider="google", model_id="gemini-2.5-pro")
+        a = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
+        b = ModelConfig(provider="google", model_id="gemini-2.5-flash")
         judge = get_judge_model(a, b)
         assert judge.provider == "anthropic"
+        assert judge.model_id == "claude-haiku-4-5"
 
     def test_returns_valid_model_config(self) -> None:
-        a = ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
-        b = ModelConfig(provider="openai", model_id="gpt-4o")
+        a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
+        b = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         judge = get_judge_model(a, b)
         assert isinstance(judge, ModelConfig)
         assert judge.model_id  # non-empty

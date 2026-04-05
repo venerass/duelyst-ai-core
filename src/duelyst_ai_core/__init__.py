@@ -9,8 +9,8 @@ Basic usage::
 
     config = DebateConfig(
         topic="Should startups use microservices or monoliths?",
-        model_a=ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514"),
-        model_b=ModelConfig(provider="openai", model_id="gpt-4o"),
+        model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+        model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
     )
 
     orchestrator = DebateOrchestrator(config)

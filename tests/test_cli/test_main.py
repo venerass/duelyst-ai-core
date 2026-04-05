@@ -51,8 +51,8 @@ class TestBuildConfig:
     def test_basic_config(self) -> None:
         config = _build_config(
             topic="Test topic",
-            model_a="claude-sonnet",
-            model_b="gpt-4o",
+            model_a="claude-haiku",
+            model_b="gpt-mini",
             judge=None,
             instructions_a=None,
             instructions_b=None,
@@ -64,15 +64,17 @@ class TestBuildConfig:
         assert config.topic == "Test topic"
         assert config.model_a.provider == "anthropic"
         assert config.model_b.provider == "openai"
+        assert config.model_a.model_id == "claude-haiku-4-5"
+        assert config.model_b.model_id == "gpt-5.4-mini"
         assert config.max_rounds == 3
         assert config.judge_model is None
 
     def test_with_judge(self) -> None:
         config = _build_config(
             topic="Test",
-            model_a="claude-sonnet",
-            model_b="gpt-4o",
-            judge="gemini-pro",
+            model_a="claude-haiku",
+            model_b="gpt-mini",
+            judge="gemini-flash",
             instructions_a=None,
             instructions_b=None,
             rounds=5,
@@ -82,12 +84,13 @@ class TestBuildConfig:
         )
         assert config.judge_model is not None
         assert config.judge_model.provider == "google"
+        assert config.judge_model.model_id == "gemini-2.5-flash"
 
     def test_with_instructions(self) -> None:
         config = _build_config(
             topic="Test",
-            model_a="claude-sonnet",
-            model_b="gpt-4o",
+            model_a="claude-haiku",
+            model_b="gpt-mini",
             judge=None,
             instructions_a="Defend position X",
             instructions_b="Defend position Y",
@@ -104,7 +107,7 @@ class TestBuildConfig:
             _build_config(
                 topic="Test",
                 model_a="invalid-model",
-                model_b="gpt-4o",
+                model_b="gpt-mini",
                 judge=None,
                 instructions_a=None,
                 instructions_b=None,

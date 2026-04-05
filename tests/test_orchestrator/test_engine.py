@@ -20,8 +20,8 @@ from duelyst_ai_core.orchestrator.state import (
 def debate_config() -> DebateConfig:
     return DebateConfig(
         topic="Should startups use microservices or monoliths?",
-        model_a=ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514"),
-        model_b=ModelConfig(provider="openai", model_id="gpt-4o"),
+        model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+        model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
         max_rounds=3,
         convergence_threshold=7,
         convergence_rounds=2,
@@ -75,7 +75,7 @@ def _create_orchestrator(config: DebateConfig) -> DebateOrchestrator:
         patch("duelyst_ai_core.orchestrator.engine.get_judge_model") as mock_judge,
     ):
         mock_create.return_value = MagicMock()
-        mock_judge.return_value = ModelConfig(provider="google", model_id="gemini-2.5-pro")
+        mock_judge.return_value = ModelConfig(provider="google", model_id="gemini-2.5-flash")
         return DebateOrchestrator(config)
 
 
@@ -211,8 +211,8 @@ class TestOrchestratorFullGraph:
         """Test a complete debate with max_rounds=1."""
         config = DebateConfig(
             topic="Test topic",
-            model_a=ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514"),
-            model_b=ModelConfig(provider="openai", model_id="gpt-4o"),
+            model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+            model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
             max_rounds=1,
         )
 

@@ -17,8 +17,8 @@ class TestMarkdownFormatter:
 
     def test_contains_model_ids(self, sample_debate_result: DebateResult) -> None:
         output = MarkdownFormatter().format(sample_debate_result)
-        assert "claude-sonnet-4-20250514" in output
-        assert "gpt-4o" in output
+        assert "claude-haiku-4-5" in output
+        assert "gpt-5.4-mini" in output
 
     def test_contains_round_headers(self, sample_debate_result: DebateResult) -> None:
         output = MarkdownFormatter().format(sample_debate_result)

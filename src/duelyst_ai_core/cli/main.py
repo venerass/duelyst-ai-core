@@ -2,7 +2,7 @@
 
 Usage:
     duelyst debate "Should startups use microservices or monoliths?"
-    duelyst debate "Rust vs Go" --model-a claude-sonnet --model-b gpt-4o
+    duelyst debate "Rust vs Go" --model-a claude-haiku --model-b gpt-mini
     duelyst debate "AI replacing jobs" --rounds 5 --output markdown
 """
 
@@ -87,8 +87,8 @@ def debate(
     topic: Annotated[str, typer.Argument(help="The debate topic or question")],
     model_a: Annotated[
         str, typer.Option("--model-a", "-a", help="Model for side A")
-    ] = "claude-sonnet",
-    model_b: Annotated[str, typer.Option("--model-b", "-b", help="Model for side B")] = "gpt-4o",
+    ] = "claude-haiku",
+    model_b: Annotated[str, typer.Option("--model-b", "-b", help="Model for side B")] = "gpt-mini",
     judge: Annotated[str | None, typer.Option("--judge", "-j", help="Judge model")] = None,
     instructions_a: Annotated[
         str | None, typer.Option("--instructions-a", help="Instructions for A")
