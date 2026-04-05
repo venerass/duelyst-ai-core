@@ -1,1 +1,1 @@
-"""Model adapters — uniform interface for LLM providers."""
+"""Model registry — create LangChain chat models for any supported provider."""

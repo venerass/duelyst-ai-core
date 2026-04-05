@@ -34,48 +34,42 @@ This repo is the OSS core of an open-core product. It must remain **product-inde
 
 ### Agent Design
 
-Each agent is a **LangGraph graph**, identical in structure, parameterized by model and user instructions. Both agents in a debate share the same architecture — they differ only in configuration (which model, which side to defend, what instructions).
+Agents use `create_agent` from `langchain.agents` — a prebuilt ReAct agent factory that handles the tool-calling loop and structured output automatically. Each agent is a thin class wrapping `create_agent` with the appropriate system prompt and `response_format`.
 
-Agent turn flow:
-
-1. **Receive state** — full debate history, topic, assigned side, instructions
-2. **Reflect** — analyze opponent's last arguments, identify weak points and strong points
-3. **Research** (optional) — web search for current data and evidence if needed
-4. **Generate evidence** (optional) — execute code for calculations, charts, data analysis
-5. **Formulate response** — argue based on reflection, research, and evidence
-6. **Score convergence** — output a 0-10 score indicating agreement level with opponent
+- **DebaterAgent** (`agents/debater.py`): Receives debate context as messages, optionally uses tools (web search, code execution), and produces a structured `AgentResponse` with argument and convergence score.
+- **JudgeAgent** (`agents/judge.py`): No tools. Receives the full debate transcript and produces a `JudgeSynthesis`.
 
 ### Orchestrator
 
-The orchestrator is the outer graph that manages the debate:
+The orchestrator (`orchestrator/engine.py`) is a LangGraph `StateGraph`:
+
+```
+START → init_debate → run_debater_a → run_debater_b → check_convergence
+                      ↑                                       |
+                      |_____ continue ________________________|
+                                                              |
+                                            converged/max → run_judge → END
+```
 
 - Alternates turns between Agent A and Agent B
-- Passes full debate history to each agent on their turn
 - Tracks convergence scores from both agents
-- Terminates when: both agents score ≥7 for 2 consecutive rounds, OR max rounds reached
-- Triggers synthesis generation by a **judge agent** (third model, different from debaters)
+- Terminates when: both agents score >= threshold for N consecutive rounds, OR max rounds reached
+- Triggers synthesis generation by a judge agent (third model, different from debaters)
 
-### Judge / Synthesis
+### Model Layer
 
-The judge receives the complete debate transcript and produces:
-
-- Summary of each side's position
-- Key evidence cited by each agent
-- Points of agreement
-- Points of persistent disagreement
-- Balanced conclusion
-
-The judge model is always different from the two debater models to avoid bias.
+No custom adapter classes. `models/registry.py` provides:
+- `create_model(config)` — returns a LangChain `BaseChatModel` directly
+- `resolve_alias(name)` — maps short names like "claude-sonnet" to (provider, model_id)
+- `get_judge_model(model_a, model_b)` — auto-selects a judge from a different provider
 
 ### Models Supported
 
 | Provider | Models | SDK |
 |----------|--------|-----|
-| Anthropic | Claude Opus, Sonnet, Haiku | `anthropic` |
-| OpenAI | GPT-4o, GPT-4o-mini | `openai` |
-| Google | Gemini Pro, Flash | `google-generativeai` |
-
-Model adapters must expose a uniform interface so the orchestrator is model-agnostic.
+| Anthropic | Claude Opus, Sonnet, Haiku | `langchain-anthropic` |
+| OpenAI | GPT-4o, GPT-4o-mini, GPT-4.1 | `langchain-openai` |
+| Google | Gemini Pro, Flash | `langchain-google-genai` |
 
 ### Tools
 
@@ -90,105 +84,12 @@ Tools are **optional per debate** — the orchestrator and agents work without t
 ## Tech Stack
 
 - **Python 3.11+**
-- **LangGraph** — agent orchestration framework
-- **LangChain** — model adapters and tool abstractions
-- **Pydantic** — data models and validation
-- **Typer** or **Click** — CLI framework
+- **LangGraph 1.1+** — orchestrator graph
+- **LangChain 1.2+** — agent factory (`create_agent`), model adapters, tool abstractions
+- **Pydantic 2.12+** — data models and validation
+- **Typer** — CLI framework
 - **Rich** — terminal output formatting
 - **pytest** — testing
-
-## Project Structure (target)
-
-```
-duelyst-ai-core/
-├── src/
-│   └── duelyst_ai_core/
-│       ├── __init__.py
-│       ├── agents/
-│       │   ├── __init__.py
-│       │   ├── debater.py          # LangGraph agent definition
-│       │   ├── judge.py            # Synthesis/judge agent
-│       │   └── prompts.py          # System prompts (static templates)
-│       ├── models/
-│       │   ├── __init__.py
-│       │   ├── base.py             # Abstract model adapter interface
-│       │   ├── anthropic.py        # Claude adapter
-│       │   ├── openai.py           # GPT adapter
-│       │   └── google.py           # Gemini adapter
-│       ├── tools/
-│       │   ├── __init__.py
-│       │   ├── search.py           # Web search tool (Tavily)
-│       │   ├── code_exec.py        # Code execution (E2B / Docker)
-│       │   └── visualization.py    # Chart generation
-│       ├── orchestrator/
-│       │   ├── __init__.py
-│       │   ├── engine.py           # Main debate orchestrator (LangGraph)
-│       │   ├── state.py            # Debate state schema
-│       │   └── convergence.py      # Convergence detection logic
-│       ├── formatters/
-│       │   ├── __init__.py
-│       │   ├── markdown.py         # Markdown output
-│       │   ├── json_fmt.py         # JSON output
-│       │   └── rich_terminal.py    # Rich terminal output
-│       └── cli/
-│           ├── __init__.py
-│           └── main.py             # CLI entry point
-├── tests/
-│   ├── test_agents/
-│   ├── test_orchestrator/
-│   ├── test_models/
-│   └── test_tools/
-├── examples/
-│   ├── basic_debate.py
-│   ├── debate_with_tools.py
-│   └── custom_instructions.py
-├── pyproject.toml
-├── README.md
-├── CLAUDE.md                       # This file
-├── LICENSE
-└── .env.example
-```
-
-## Configuration
-
-Users configure via environment variables. Never hardcode keys or defaults that assume a specific provider.
-
-```bash
-# .env.example
-ANTHROPIC_API_KEY=your-key-here
-OPENAI_API_KEY=your-key-here
-GOOGLE_API_KEY=your-key-here
-TAVILY_API_KEY=your-key-here        # Optional: for web search tool
-E2B_API_KEY=your-key-here            # Optional: for cloud code execution
-```
-
-## CLI Usage (target interface)
-
-```bash
-# Basic debate
-duelyst debate "Should startups use microservices or monoliths?"
-
-# Choose models
-duelyst debate "Rust vs Go for backend in 2026" --model-a claude-sonnet --model-b gpt-4o
-
-# Assign sides and instructions
-duelyst debate "Will AI replace software engineers by 2030?" \
-  --model-a claude-sonnet \
-  --model-b gemini-pro \
-  --instructions-a "Defend the position that AI will replace most software engineering jobs" \
-  --instructions-b "Defend the position that AI will augment but not replace engineers" \
-  --rounds 5
-
-# Enable tools
-duelyst debate "Bitcoin price prediction 2026" \
-  --model-a claude-sonnet \
-  --model-b gpt-4o \
-  --tools search,code
-
-# Output format
-duelyst debate "..." --output markdown > debate.md
-duelyst debate "..." --output json > debate.json
-```
 
 ## Coding Conventions
 
@@ -201,28 +102,19 @@ duelyst debate "..." --output json > debate.json
 
 ## Key Design Decisions
 
-1. **Agents are stateless** — all state lives in the LangGraph state object, not in the agent. This makes agents composable and testable.
-2. **Model adapters are pluggable** — adding a new model means implementing one adapter class. The orchestrator doesn't know which model it's talking to.
-3. **Tools are optional** — a debate runs fine without web search or code execution. Tools enhance quality but are not required.
-4. **System prompts are static** — user input (topic, instructions, sides) goes into the user message, never into the system prompt. This is a security boundary against prompt injection.
-5. **Structured output** — agents return structured Pydantic models (argument text, evidence list, convergence score, tool calls made), not raw text. This makes parsing, formatting, and downstream processing reliable.
-6. **The core is product-independent** — it has no concept of users, billing, or persistence. It takes a debate config, runs the debate, and returns the result. The product (duelyst-ai-api) wraps this with product logic.
+1. **Agents use `create_agent`** — the prebuilt agent factory from `langchain.agents` handles the ReAct loop. No custom multi-node agent graphs.
+2. **No custom adapter layer** — LangChain's `BaseChatModel` is the interface. Provider-specific logic lives in private factory functions in `registry.py`.
+3. **System prompts are static** — user input goes into the user message, never into the system prompt.
+4. **Structured output** — agents return structured Pydantic models via `response_format` parameter.
+5. **Tools are optional** — debates work without tools. Tools enhance quality but are not required.
+6. **The core is product-independent** — no concept of users, billing, or persistence.
 
 ## Current Phase
 
-**Phase 1: OSS Engine + CLI (Weeks 1-3)**
+**Phase 1: OSS Engine + CLI**
 
-Priority deliverables in order:
+Completed: scaffolding, data models, model registry, agents (DebaterAgent, JudgeAgent), orchestrator, convergence detection, streaming events, 117 tests.
 
-1. Debate state schema and Pydantic models
-2. Model adapters for Claude, GPT, Gemini with uniform interface
-3. Basic debater agent (LangGraph graph with reflect → respond → score convergence)
-4. Orchestrator with turn management and convergence detection
-5. Judge agent for synthesis generation
-6. CLI with basic debate command
-7. Markdown and JSON formatters
-8. Web search tool integration (Tavily)
-9. README with examples, usage, and installation instructions
-10. PyPI publishing setup (pyproject.toml)
+Next: CLI, output formatters, web search tool, README.
 
 Code execution tool and data visualization are Phase 4 — do not implement now unless specifically asked.
