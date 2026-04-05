@@ -15,7 +15,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypedDict
 
 # Runtime import: LangGraph resolves TypedDict annotations via get_type_hints()
-from duelyst_ai_core.agents.schemas import JudgeSynthesis  # noqa: TC001
+from duelyst_ai_core.agents.schemas import (
+    JudgeSynthesis,
+    rebuild_debate_result_forward_refs,
+)
 
 
 class ToolType(StrEnum):
@@ -81,6 +84,9 @@ class DebateStatus(StrEnum):
     CONVERGED = "converged"
     MAX_ROUNDS = "max_rounds"
     ERROR = "error"
+
+
+rebuild_debate_result_forward_refs(DebateConfig)
 
 
 # ---------------------------------------------------------------------------

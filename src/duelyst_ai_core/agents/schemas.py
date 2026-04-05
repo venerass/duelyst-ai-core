@@ -185,13 +185,6 @@ class DebateResult(BaseModel):
     metadata: DebateMetadata
 
 
-def _rebuild_forward_refs() -> None:
-    """Rebuild forward references after all models are defined."""
-    from duelyst_ai_core.orchestrator.state import DebateConfig
-
-    DebateResult.model_rebuild(
-        _types_namespace={"DebateConfig": DebateConfig},
-    )
-
-
-_rebuild_forward_refs()
+def rebuild_debate_result_forward_refs(debate_config_type: type[object]) -> None:
+    """Rebuild DebateResult once DebateConfig is available at runtime."""
+    DebateResult.model_rebuild(_types_namespace={"DebateConfig": debate_config_type})

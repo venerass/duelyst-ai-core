@@ -10,25 +10,66 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from enum import StrEnum
 from typing import Annotated
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 
-from duelyst_ai_core.cli.display import DebateDisplay
 from duelyst_ai_core.exceptions import ConfigError, DuelystError
-from duelyst_ai_core.formatters import JsonFormatter, MarkdownFormatter, RichTerminalFormatter
 from duelyst_ai_core.models.registry import resolve_alias
 from duelyst_ai_core.orchestrator.state import DebateConfig, ModelConfig, ToolType
 
+_ROOT_HELP = """Run structured AI debates between two models and synthesize the outcome.
+
+Quick start:
+1. Put provider keys in `.env` or export them in your shell.
+2. Run `duelyst debate "Your topic"`.
+3. Run `duelyst debate --help` for guided examples and option details.
+
+Common model aliases: `claude-haiku`, `claude-sonnet`, `gpt-mini`, `gpt-5`, `gemini-flash`.
+"""
+
+_DEBATE_HELP = """Run a structured multi-round debate on TOPIC.
+
+The CLI auto-loads `.env` from the current working directory before resolving providers.
+You usually want API keys for at least two providers across Anthropic, OpenAI, and Google.
+
+Examples:
+- `duelyst debate "Biscoito ou bolacha?"`
+- `duelyst debate "Rust vs Go for backend" --model-a claude-sonnet --model-b gpt-5`
+- `duelyst debate "Bitcoin price prediction 2026" --tools search --output markdown`
+
+Common aliases:
+- Anthropic: `claude-haiku`, `claude-sonnet`, `claude-opus`
+- OpenAI: `gpt-mini`, `gpt-5`, `gpt-nano`
+- Google: `gemini-flash`, `gemini-flash-lite`, `gemini-pro`
+"""
+
+
+class OutputFormat(StrEnum):
+    """Supported CLI output formats."""
+
+    RICH = "rich"
+    MARKDOWN = "markdown"
+    JSON = "json"
+
 app = typer.Typer(
     name="duelyst",
-    help="Duelyst.ai — AI-powered debate engine",
+    help=_ROOT_HELP,
     no_args_is_help=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+    rich_markup_mode="markdown",
 )
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+@app.callback()
+def main() -> None:
+    """Duelyst.ai — AI-powered debate engine."""
 
 
 def _parse_tools(tools_str: str | None) -> list[ToolType]:
@@ -82,34 +123,144 @@ def _build_config(
     )
 
 
-@app.command()
+@app.command("debate", help=_DEBATE_HELP)
 def debate(
-    topic: Annotated[str, typer.Argument(help="The debate topic or question")],
+    topic: Annotated[
+        str,
+        typer.Argument(help="Question or proposition to debate. Quote multi-word topics."),
+    ],
     model_a: Annotated[
-        str, typer.Option("--model-a", "-a", help="Model for side A")
+        str,
+        typer.Option(
+            "--model-a",
+            "-a",
+            metavar="ALIAS_OR_MODEL",
+            help=(
+                "Model for side A. Use a friendly alias such as claude-haiku, gpt-mini, "
+                "or gemini-flash, or pass a full model ID starting with claude/gpt/gemini."
+            ),
+            rich_help_panel="Model Selection",
+        ),
     ] = "claude-haiku",
-    model_b: Annotated[str, typer.Option("--model-b", "-b", help="Model for side B")] = "gpt-mini",
-    judge: Annotated[str | None, typer.Option("--judge", "-j", help="Judge model")] = None,
+    model_b: Annotated[
+        str,
+        typer.Option(
+            "--model-b",
+            "-b",
+            metavar="ALIAS_OR_MODEL",
+            help=(
+                "Model for side B. Defaults to gpt-mini for cheap local smoke tests."
+            ),
+            rich_help_panel="Model Selection",
+        ),
+    ] = "gpt-mini",
+    judge: Annotated[
+        str | None,
+        typer.Option(
+            "--judge",
+            "-j",
+            metavar="ALIAS_OR_MODEL",
+            help=(
+                "Optional judge model. If omitted, Duelyst auto-picks a low-cost judge from "
+                "a different provider when possible."
+            ),
+            rich_help_panel="Model Selection",
+        ),
+    ] = None,
     instructions_a: Annotated[
-        str | None, typer.Option("--instructions-a", help="Instructions for A")
+        str | None,
+        typer.Option(
+            "--instructions-a",
+            help=(
+                "Optional stance or extra guidance for side A. Example: Defend the monolith "
+                "position even if it seems weaker."
+            ),
+            rich_help_panel="Debate Setup",
+        ),
     ] = None,
     instructions_b: Annotated[
-        str | None, typer.Option("--instructions-b", help="Instructions for B")
+        str | None,
+        typer.Option(
+            "--instructions-b",
+            help=(
+                "Optional stance or extra guidance for side B. Use this when you want a "
+                "specific framing instead of a generic opposing side."
+            ),
+            rich_help_panel="Debate Setup",
+        ),
     ] = None,
-    rounds: Annotated[int, typer.Option("--rounds", "-r", help="Maximum debate rounds")] = 5,
+    rounds: Annotated[
+        int,
+        typer.Option(
+            "--rounds",
+            "-r",
+            help="Maximum rounds before forcing synthesis.",
+            rich_help_panel="Debate Setup",
+        ),
+    ] = 5,
     convergence_threshold: Annotated[
-        int, typer.Option("--threshold", help="Convergence threshold (1-10)")
+        int,
+        typer.Option(
+            "--threshold",
+            help=(
+                "Minimum convergence score both agents must reach in the same round. "
+                "Higher values make the debate push harder before stopping."
+            ),
+            rich_help_panel="Debate Setup",
+        ),
     ] = 7,
     convergence_rounds: Annotated[
-        int, typer.Option("--convergence-rounds", help="Consecutive converged rounds")
+        int,
+        typer.Option(
+            "--convergence-rounds",
+            help=(
+                "How many consecutive converged rounds are required before the judge runs."
+            ),
+            rich_help_panel="Debate Setup",
+        ),
     ] = 2,
-    tools: Annotated[str | None, typer.Option("--tools", "-t", help="Tools: search,code")] = None,
+    tools: Annotated[
+        str | None,
+        typer.Option(
+            "--tools",
+            "-t",
+            metavar="CSV",
+            help=(
+                "Comma-separated tools. Use search for Tavily-backed web search after "
+                "installing duelyst-ai-core[search] and setting TAVILY_API_KEY. code is "
+                "reserved for a future phase and is not available yet."
+            ),
+            rich_help_panel="Debate Setup",
+        ),
+    ] = None,
     output: Annotated[
-        str, typer.Option("--output", "-o", help="Format: rich, markdown, json")
-    ] = "rich",
-    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Show debug logging")] = False,
+        OutputFormat,
+        typer.Option(
+            "--output",
+            "-o",
+            help=(
+                "Final output format. rich is best for interactive reading, markdown for "
+                "files, and json for automation or piping into other tools."
+            ),
+            rich_help_panel="Output & Diagnostics",
+        ),
+    ] = OutputFormat.RICH,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            "-v",
+            help="Show debug logging from orchestration and provider setup.",
+            rich_help_panel="Output & Diagnostics",
+        ),
+    ] = False,
 ) -> None:
     """Run an AI debate on the given topic."""
+    load_dotenv(dotenv_path=".env", override=False)
+
+    from duelyst_ai_core.cli.display import DebateDisplay
+    from duelyst_ai_core.formatters import JsonFormatter, MarkdownFormatter, RichTerminalFormatter
+
     # Configure logging
     log_level = logging.DEBUG if verbose else logging.WARNING
     logging.basicConfig(level=log_level, format="%(name)s %(levelname)s: %(message)s")
@@ -144,9 +295,9 @@ def debate(
         raise typer.Exit(code=130) from None
 
     # Format output
-    if output == "markdown":
+    if output == OutputFormat.MARKDOWN:
         console.print(MarkdownFormatter().format(result))
-    elif output == "json":
+    elif output == OutputFormat.JSON:
         console.print(JsonFormatter().format(result))
     else:
         console.print(RichTerminalFormatter().format(result))

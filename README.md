@@ -25,9 +25,30 @@ When two models debate adversarially, they challenge claims, request evidence, a
 pip install duelyst-ai-core
 ```
 
-Set API keys for the models you want to use:
+To enable Tavily-backed web search via `--tools search`, install the optional
+search dependencies too:
 
 ```bash
+pip install "duelyst-ai-core[search]"
+```
+
+That extra installs the modern `langchain-tavily` integration used by LangChain 1.x.
+
+Set API keys for the models you want to use. For CLI usage, you can either export
+them in your shell or put them in a local `.env` file. The CLI now auto-loads `.env`
+from the current working directory.
+
+```bash
+# Option 1: local .env file used by the CLI
+cp .env.example .env
+
+# Fill values as plain KEY=value lines. Quotes are optional for API keys.
+ANTHROPIC_API_KEY=your-key-here
+OPENAI_API_KEY=your-key-here
+GOOGLE_API_KEY=your-key-here       # optional
+TAVILY_API_KEY=your-key-here       # optional, for web search
+
+# Option 2: export into the shell
 export ANTHROPIC_API_KEY=your-key-here
 export OPENAI_API_KEY=your-key-here
 export GOOGLE_API_KEY=your-key-here       # optional
@@ -56,6 +77,9 @@ duelyst debate "Will AI replace software engineers by 2030?" \
 # Enable web search for real-time evidence
 duelyst debate "Bitcoin price prediction 2026" \
   --model-a claude-haiku --model-b gpt-mini --tools search
+
+# From source, include the optional search dependencies in your environment first
+uv sync --group dev --extra search
 
 # Output formats
 duelyst debate "..." --output markdown > debate.md
@@ -176,6 +200,9 @@ TAVILY_API_KEY=your-key-here    # enables --tools search
 git clone https://github.com/duelyst-ai/duelyst-ai-core.git
 cd duelyst-ai-core
 uv sync --group dev
+
+# Include optional Tavily web search support
+uv sync --group dev --extra search
 
 # Run tests
 uv run pytest -v

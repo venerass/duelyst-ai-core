@@ -2,7 +2,7 @@
 
 Provides a LangChain-compatible tool that agents can use for real-time
 evidence gathering during debates. Gracefully unavailable when the
-TAVILY_API_KEY is not set.
+TAVILY_API_KEY is not set or the optional search dependency is missing.
 """
 
 from __future__ import annotations
@@ -18,6 +18,24 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_SEARCH_INSTALL_HINT = 'Install them with: pip install "duelyst-ai-core[search]"'
+
+
+def get_search_unavailable_reason() -> str | None:
+    """Return the reason web search is unavailable, if any."""
+    if not os.environ.get("TAVILY_API_KEY"):
+        return "TAVILY_API_KEY environment variable is not set"
+
+    try:
+        from langchain_tavily import TavilySearch  # noqa: F401
+    except ImportError:
+        return (
+            "Search dependencies are not installed "
+            f"(missing langchain-tavily). {_SEARCH_INSTALL_HINT}"
+        )
+
+    return None
+
 
 def create_search_tool() -> BaseTool:
     """Create a Tavily web search tool.
@@ -26,45 +44,40 @@ def create_search_tool() -> BaseTool:
     tools parameter.
 
     Returns:
-        A configured TavilySearchResults tool.
+        A configured TavilySearch tool.
 
     Raises:
         ConfigError: If TAVILY_API_KEY is not set.
-        ToolError: If tavily-python is not installed.
+        ToolError: If search dependencies are not installed.
     """
-    api_key = os.environ.get("TAVILY_API_KEY")
-    if not api_key:
-        msg = (
-            "TAVILY_API_KEY environment variable is not set. "
-            "Install tavily-python and set the key to enable web search."
-        )
-        raise ConfigError(msg)
+    unavailable_reason = get_search_unavailable_reason()
+    if unavailable_reason is not None:
+        if "TAVILY_API_KEY" in unavailable_reason:
+            raise ConfigError(unavailable_reason)
+        raise ToolError(unavailable_reason)
 
     try:
-        from langchain_community.tools.tavily_search import TavilySearchResults
+        from langchain_tavily import TavilySearch
     except ImportError:
-        msg = "tavily-python is not installed. Install it with: pip install duelyst-ai-core[search]"
+        msg = (
+            "Search dependencies are not installed "
+            f"(missing langchain-tavily). {_SEARCH_INSTALL_HINT}"
+        )
         raise ToolError(msg) from None
 
-    tool = TavilySearchResults(
+    tool = TavilySearch(
         max_results=5,
-        tavily_api_key=api_key,
+        topic="general",
     )
 
-    logger.info("Web search tool created (Tavily)")
-    return tool  # type: ignore[no-any-return]
+    logger.info("Web search tool created (Tavily via langchain-tavily)")
+    return tool
 
 
 def is_search_available() -> bool:
     """Check if the web search tool can be created.
 
     Returns:
-        True if TAVILY_API_KEY is set and tavily-python is installed.
+        True if TAVILY_API_KEY is set and search dependencies are installed.
     """
-    if not os.environ.get("TAVILY_API_KEY"):
-        return False
-    try:
-        from langchain_community.tools.tavily_search import TavilySearchResults  # noqa: F401
-    except ImportError:
-        return False
-    return True
+    return get_search_unavailable_reason() is None

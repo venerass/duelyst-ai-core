@@ -9,9 +9,10 @@ from rich.panel import Panel
 from rich.status import Status
 
 from duelyst_ai_core.agents.schemas import DebateMetadata, DebateResult
+from duelyst_ai_core.exceptions import ConfigError, ToolError
 from duelyst_ai_core.orchestrator.engine import DebateOrchestrator
 from duelyst_ai_core.orchestrator.state import ToolType
-from duelyst_ai_core.tools.search import create_search_tool, is_search_available
+from duelyst_ai_core.tools.search import create_search_tool
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -59,13 +60,12 @@ class DebateDisplay:
         # Build tools list
         tools = []
         if ToolType.SEARCH in config.tools_enabled:
-            if is_search_available():
+            try:
                 tools.append(create_search_tool())
-            else:
+            except (ConfigError, ToolError) as exc:
                 self._console.print(
-                    "[yellow]Warning: Search tool requested but "
-                    "TAVILY_API_KEY not set. Continuing without "
-                    "search.[/yellow]"
+                    "[yellow]Warning: Search tool requested but unavailable: "
+                    f"{exc}. Continuing without search.[/yellow]"
                 )
 
         # Create orchestrator
