@@ -15,7 +15,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import TypedDict
 
 # Runtime import: LangGraph resolves TypedDict annotations via get_type_hints()
-from duelyst_ai_core.agents.schemas import JudgeSynthesis  # noqa: TC001
+from duelyst_ai_core.agents.schemas import (
+    JudgeSynthesis,
+    rebuild_debate_result_forward_refs,
+)
 
 
 class ToolType(StrEnum):
@@ -30,7 +33,7 @@ class ModelConfig(BaseModel):
 
     Args:
         provider: The model provider — one of anthropic, openai, google.
-        model_id: Provider-specific model identifier (e.g. "claude-sonnet-4-20250514").
+        model_id: Provider-specific model identifier (e.g. "claude-haiku-4-5").
         temperature: Sampling temperature for generation.
         max_tokens: Maximum tokens in model response.
     """
@@ -81,6 +84,9 @@ class DebateStatus(StrEnum):
     CONVERGED = "converged"
     MAX_ROUNDS = "max_rounds"
     ERROR = "error"
+
+
+rebuild_debate_result_forward_refs(DebateConfig)
 
 
 # ---------------------------------------------------------------------------

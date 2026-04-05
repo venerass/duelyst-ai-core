@@ -17,17 +17,17 @@ from duelyst_ai_core.orchestrator.state import ModelConfig
 
 @pytest.fixture
 def anthropic_config() -> ModelConfig:
-    return ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514")
+    return ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
 
 
 @pytest.fixture
 def openai_config() -> ModelConfig:
-    return ModelConfig(provider="openai", model_id="gpt-4o")
+    return ModelConfig(provider="openai", model_id="gpt-5.4-mini")
 
 
 @pytest.fixture
 def google_config() -> ModelConfig:
-    return ModelConfig(provider="google", model_id="gemini-2.5-pro")
+    return ModelConfig(provider="google", model_id="gemini-2.5-flash")
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ class TestCreateAnthropic:
 
         assert model is mock_chat.return_value
         mock_chat.assert_called_once_with(
-            model="claude-sonnet-4-20250514",
+            model="claude-haiku-4-5",
             temperature=0.7,
             max_tokens=4096,
             api_key="test-key",
@@ -86,7 +86,7 @@ class TestCreateOpenAI:
 
         assert model is mock_chat.return_value
         mock_chat.assert_called_once_with(
-            model="gpt-4o",
+            model="gpt-5.4-mini",
             temperature=0.7,
             max_tokens=4096,
             api_key="test-key",
@@ -116,7 +116,7 @@ class TestCreateGoogle:
 
         assert model is mock_chat.return_value
         mock_chat.assert_called_once_with(
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash",
             temperature=0.7,
             max_output_tokens=4096,
             google_api_key="test-key",

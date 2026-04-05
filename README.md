@@ -25,9 +25,30 @@ When two models debate adversarially, they challenge claims, request evidence, a
 pip install duelyst-ai-core
 ```
 
-Set API keys for the models you want to use:
+To enable Tavily-backed web search via `--tools search`, install the optional
+search dependencies too:
 
 ```bash
+pip install "duelyst-ai-core[search]"
+```
+
+That extra installs the modern `langchain-tavily` integration used by LangChain 1.x.
+
+Set API keys for the models you want to use. For CLI usage, you can either export
+them in your shell or put them in a local `.env` file. The CLI now auto-loads `.env`
+from the current working directory.
+
+```bash
+# Option 1: local .env file used by the CLI
+cp .env.example .env
+
+# Fill values as plain KEY=value lines. Quotes are optional for API keys.
+ANTHROPIC_API_KEY=your-key-here
+OPENAI_API_KEY=your-key-here
+GOOGLE_API_KEY=your-key-here       # optional
+TAVILY_API_KEY=your-key-here       # optional, for web search
+
+# Option 2: export into the shell
 export ANTHROPIC_API_KEY=your-key-here
 export OPENAI_API_KEY=your-key-here
 export GOOGLE_API_KEY=your-key-here       # optional
@@ -39,23 +60,26 @@ export TAVILY_API_KEY=your-key-here       # optional, for web search
 ### CLI
 
 ```bash
-# Basic debate — Claude vs GPT
+# Basic debate — low-cost defaults (Claude Haiku + GPT mini)
 duelyst debate "Should startups use microservices or monoliths?"
 
 # Choose models
-duelyst debate "Rust vs Go for backend" --model-a claude-sonnet --model-b gpt-4o
+duelyst debate "Rust vs Go for backend" --model-a claude-sonnet --model-b gpt-5
 
 # Custom instructions
 duelyst debate "Will AI replace software engineers by 2030?" \
-  --model-a claude-sonnet \
-  --model-b gemini-pro \
+  --model-a claude-haiku \
+  --model-b gemini-flash \
   --instructions-a "Defend the position that AI will replace most jobs" \
   --instructions-b "Defend the position that AI will augment, not replace" \
   --rounds 5
 
 # Enable web search for real-time evidence
 duelyst debate "Bitcoin price prediction 2026" \
-  --model-a claude-sonnet --model-b gpt-4o --tools search
+  --model-a claude-haiku --model-b gpt-mini --tools search
+
+# From source, include the optional search dependencies in your environment first
+uv sync --group dev --extra search
 
 # Output formats
 duelyst debate "..." --output markdown > debate.md
@@ -70,8 +94,8 @@ from duelyst_ai_core import DebateConfig, DebateOrchestrator, ModelConfig
 
 config = DebateConfig(
     topic="Should startups use microservices or monoliths?",
-    model_a=ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514"),
-    model_b=ModelConfig(provider="openai", model_id="gpt-4o"),
+    model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+    model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
     max_rounds=5,
 )
 
@@ -96,16 +120,21 @@ result = asyncio.run(orchestrator.graph.ainvoke({
 
 | Alias | Provider | Model |
 |-------|----------|-------|
-| `claude-sonnet` | Anthropic | Claude Sonnet 4 |
-| `claude-haiku` | Anthropic | Claude Haiku 3.5 |
-| `claude-opus` | Anthropic | Claude Opus 4 |
-| `gpt-4o` | OpenAI | GPT-4o |
-| `gpt-4o-mini` | OpenAI | GPT-4o Mini |
-| `gpt-4.1` | OpenAI | GPT-4.1 |
-| `gemini-pro` | Google | Gemini 2.5 Pro |
+| `claude-haiku` | Anthropic | Claude Haiku 4.5 |
+| `claude-sonnet` | Anthropic | Claude Sonnet 4.6 |
+| `claude-opus` | Anthropic | Claude Opus 4.6 |
+| `gpt-mini` | OpenAI | GPT-5.4 mini |
+| `gpt-5` | OpenAI | GPT-5.4 |
+| `gpt-nano` | OpenAI | GPT-5.4 nano |
 | `gemini-flash` | Google | Gemini 2.5 Flash |
+| `gemini-flash-lite` | Google | Gemini 2.5 Flash-Lite |
+| `gemini-pro` | Google | Gemini 2.5 Pro |
 
 Use aliases with `--model-a` / `--model-b`, or pass full model IDs with provider prefix.
+
+CLI defaults favor cheaper test runs: `claude-haiku` + `gpt-mini`, with `gemini-flash`
+as the auto-selected Google judge default. Legacy OpenAI aliases such as `gpt-4o`
+and `gpt-4.1` remain available for compatibility.
 
 ## How It Works
 
@@ -138,8 +167,8 @@ init_debate ──> run_debater_a ──> run_debater_b ──> check_convergenc
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--model-a` | `-a` | `claude-sonnet` | Model for side A |
-| `--model-b` | `-b` | `gpt-4o` | Model for side B |
+| `--model-a` | `-a` | `claude-haiku` | Model for side A |
+| `--model-b` | `-b` | `gpt-mini` | Model for side B |
 | `--judge` | `-j` | auto | Judge model (auto-selects different provider) |
 | `--instructions-a` | | auto | Custom instructions for side A |
 | `--instructions-b` | | auto | Custom instructions for side B |
@@ -171,6 +200,9 @@ TAVILY_API_KEY=your-key-here    # enables --tools search
 git clone https://github.com/duelyst-ai/duelyst-ai-core.git
 cd duelyst-ai-core
 uv sync --group dev
+
+# Include optional Tavily web search support
+uv sync --group dev --extra search
 
 # Run tests
 uv run pytest -v

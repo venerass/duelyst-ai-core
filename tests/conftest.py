@@ -22,8 +22,8 @@ def sample_config() -> DebateConfig:
     """A minimal debate configuration for testing."""
     return DebateConfig(
         topic="Should startups use microservices or monoliths?",
-        model_a=ModelConfig(provider="anthropic", model_id="claude-sonnet-4-20250514"),
-        model_b=ModelConfig(provider="openai", model_id="gpt-4o"),
+        model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+        model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
         max_rounds=2,
         convergence_threshold=7,
         convergence_rounds=2,
