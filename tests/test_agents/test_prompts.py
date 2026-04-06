@@ -74,6 +74,31 @@ class TestBuildDebaterUserMessage:
         )
         assert "Instructions" not in msg
 
+    def test_language_instruction_included(self) -> None:
+        msg = build_debater_user_message(
+            topic="Topic",
+            side="A",
+            instructions=None,
+            debate_history="",
+            round_number=1,
+            is_first_turn=True,
+            language="Portuguese",
+        )
+        assert "Portuguese" in msg
+        assert "CRITICAL INSTRUCTION" in msg
+
+    def test_no_language_instruction_when_none(self) -> None:
+        msg = build_debater_user_message(
+            topic="Topic",
+            side="A",
+            instructions=None,
+            debate_history="",
+            round_number=1,
+            is_first_turn=True,
+            language=None,
+        )
+        assert "CRITICAL INSTRUCTION" not in msg
+
 
 class TestBuildJudgeUserMessage:
     def test_contains_topic_and_transcript(self) -> None:
@@ -86,6 +111,25 @@ class TestBuildJudgeUserMessage:
         assert "Full transcript here..." in msg
         assert "5 rounds" in msg
         assert "balanced synthesis" in msg
+
+    def test_language_instruction_included(self) -> None:
+        msg = build_judge_user_message(
+            topic="AI debate",
+            transcript="transcript",
+            total_rounds=3,
+            language="Spanish",
+        )
+        assert "Spanish" in msg
+        assert "CRITICAL INSTRUCTION" in msg
+
+    def test_no_language_instruction_when_none(self) -> None:
+        msg = build_judge_user_message(
+            topic="AI debate",
+            transcript="transcript",
+            total_rounds=3,
+            language=None,
+        )
+        assert "CRITICAL INSTRUCTION" not in msg
 
 
 class TestFormatDebateHistory:

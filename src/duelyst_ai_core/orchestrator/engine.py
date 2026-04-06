@@ -198,6 +198,7 @@ class DebateOrchestrator:
             debate_history=formatted_history,
             round_number=current_round,
             is_first_turn=is_first_turn,
+            language=config.language,
         )
 
         await self._emit(TurnStarted(agent=role, round_number=current_round))
@@ -315,6 +316,7 @@ class DebateOrchestrator:
             topic=state["config"].topic,
             transcript=transcript,
             total_rounds=state["current_round"],
+            language=state["config"].language,
         )
 
         result = await self._judge.graph.ainvoke({"messages": [HumanMessage(content=user_message)]})

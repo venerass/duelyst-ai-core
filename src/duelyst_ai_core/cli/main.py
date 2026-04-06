@@ -100,6 +100,7 @@ def _build_config(
     convergence_threshold: int,
     convergence_rounds: int,
     tools_str: str | None,
+    language: str | None = None,
 ) -> DebateConfig:
     """Build a DebateConfig from CLI arguments."""
     provider_a, model_id_a = resolve_alias(model_a)
@@ -121,6 +122,7 @@ def _build_config(
         convergence_threshold=convergence_threshold,
         convergence_rounds=convergence_rounds,
         tools_enabled=_parse_tools(tools_str),
+        language=language,
     )
 
 
@@ -251,6 +253,19 @@ def debate(
             rich_help_panel="Output & Diagnostics",
         ),
     ] = False,
+    language: Annotated[
+        str | None,
+        typer.Option(
+            "--language",
+            "-l",
+            metavar="LANG",
+            help=(
+                "Language for the debate. Agents will respond in the specified language. "
+                "Examples: English, Portuguese, Spanish, French."
+            ),
+            rich_help_panel="Debate Setup",
+        ),
+    ] = None,
 ) -> None:
     """Run an AI debate on the given topic."""
     load_dotenv(dotenv_path=".env", override=False)
@@ -274,6 +289,7 @@ def debate(
             convergence_threshold=convergence_threshold,
             convergence_rounds=convergence_rounds,
             tools_str=tools,
+            language=language,
         )
     except (ConfigError, typer.BadParameter) as e:
         console.print(f"[red]Configuration error:[/red] {e}")
