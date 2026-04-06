@@ -194,7 +194,7 @@ The project follows an open-core model with three repositories. The open-source 
 
 | Attribute | Detail |
 |---|---|
-| Repository | `github.com/veneraldo/duelyst-ai-core` |
+| Repository | `github.com/venerass/duelyst-ai-core` |
 | Visibility | Public (MIT license) |
 | Language | Python |
 | Distribution | PyPI (`pip install duelyst-ai-core`) |
@@ -213,7 +213,7 @@ This repo contains the debate engine as a standalone Python package. A developer
 
 | Attribute | Detail |
 |---|---|
-| Repository | `github.com/veneraldo/duelyst-ai-api` (private) |
+| Repository | `github.com/venerass/duelyst-ai-api` (private) |
 | Language | Python (FastAPI) |
 | Deployment | Railway (Docker container, always-on) |
 | Purpose | Product backend: auth, persistence, streaming, billing, moderation |
@@ -233,7 +233,7 @@ This repo imports `duelyst-ai-core` as a pip dependency and wraps it with produc
 
 | Attribute | Detail |
 |---|---|
-| Repository | `github.com/veneraldo/duelyst-ai-app` (private) |
+| Repository | `github.com/venerass/duelyst-ai-app` (private) |
 | Language | TypeScript (Next.js) |
 | Deployment | Vercel |
 | Purpose | Frontend: debate creator, real-time viewer, published pages, user profiles |
