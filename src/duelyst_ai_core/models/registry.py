@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 ModelTier = Literal["free", "standard", "pro"]
+ModelReasoning = Literal["none", "optional"]
 
 
 @dataclass(frozen=True)
@@ -33,27 +34,121 @@ class ModelAlias:
     provider: str
     model_id: str
     tier: ModelTier
+    reasoning: ModelReasoning = "none"
+    context_window: str = "128K"
+    description: str = ""
 
 
 # Maps current friendly aliases to ModelAlias entries for CLI convenience and tier gating.
 MODEL_ALIASES: dict[str, ModelAlias] = {
-    # Anthropic current generation
-    "claude-opus": ModelAlias("anthropic", "claude-opus-4-6", "pro"),
-    "claude-sonnet": ModelAlias("anthropic", "claude-sonnet-4-6", "standard"),
-    "claude-haiku": ModelAlias("anthropic", "claude-haiku-4-5", "free"),
-    # OpenAI current generation
-    "gpt-5": ModelAlias("openai", "gpt-5.4", "pro"),
-    "gpt-mini": ModelAlias("openai", "gpt-5.4-mini", "free"),
-    "gpt-nano": ModelAlias("openai", "gpt-5.4-nano", "free"),
-    # Legacy compatibility aliases
-    "gpt-4o": ModelAlias("openai", "gpt-4o", "standard"),
-    "gpt-4o-mini": ModelAlias("openai", "gpt-4o-mini", "standard"),
-    "gpt-4.1": ModelAlias("openai", "gpt-4.1", "standard"),
-    "gpt-4.1-mini": ModelAlias("openai", "gpt-4.1-mini", "standard"),
-    # Google stable/current
-    "gemini-pro": ModelAlias("google", "gemini-2.5-pro", "standard"),
-    "gemini-flash": ModelAlias("google", "gemini-2.5-flash", "standard"),
-    "gemini-flash-lite": ModelAlias("google", "gemini-2.5-flash-lite", "free"),
+    # ── Anthropic ──────────────────────────────────────────────────────────
+    "claude-opus": ModelAlias(
+        "anthropic",
+        "claude-opus-4-6",
+        "pro",
+        reasoning="optional",
+        context_window="1M",
+        description="Most intelligent. Best for complex tasks, coding, and deep reasoning.",
+    ),
+    "claude-sonnet": ModelAlias(
+        "anthropic",
+        "claude-sonnet-4-6",
+        "standard",
+        reasoning="optional",
+        context_window="1M",
+        description="Best speed–intelligence balance. Ideal for most debates.",
+    ),
+    "claude-haiku": ModelAlias(
+        "anthropic",
+        "claude-haiku-4-5",
+        "free",
+        reasoning="none",
+        context_window="200K",
+        description="Fastest Claude. Great for quick, high-volume debates.",
+    ),
+    # ── OpenAI ─────────────────────────────────────────────────────────────
+    "gpt-5": ModelAlias(
+        "openai",
+        "gpt-5.4",
+        "pro",
+        reasoning="optional",
+        context_window="1M",
+        description="OpenAI flagship. Top-tier intelligence for agentic and professional tasks.",
+    ),
+    "gpt-mini": ModelAlias(
+        "openai",
+        "gpt-5.4-mini",
+        "free",
+        reasoning="optional",
+        context_window="400K",
+        description="Strongest mini model. Excellent coding and reasoning at low cost.",
+    ),
+    "gpt-nano": ModelAlias(
+        "openai",
+        "gpt-5.4-nano",
+        "free",
+        reasoning="optional",
+        context_window="400K",
+        description="Cheapest GPT-5.4 model. Fast and efficient for simple debates.",
+    ),
+    # Legacy compatibility aliases (kept so existing debates still resolve)
+    "gpt-4o": ModelAlias(
+        "openai",
+        "gpt-4o",
+        "standard",
+        reasoning="none",
+        context_window="128K",
+        description="Legacy GPT-4o. Solid all-rounder with vision support.",
+    ),
+    "gpt-4o-mini": ModelAlias(
+        "openai",
+        "gpt-4o-mini",
+        "standard",
+        reasoning="none",
+        context_window="128K",
+        description="Legacy GPT-4o Mini. Cost-efficient text and vision tasks.",
+    ),
+    "gpt-4.1": ModelAlias(
+        "openai",
+        "gpt-4.1",
+        "standard",
+        reasoning="none",
+        context_window="1M",
+        description="Legacy GPT-4.1. Strong coding and instruction following.",
+    ),
+    "gpt-4.1-mini": ModelAlias(
+        "openai",
+        "gpt-4.1-mini",
+        "standard",
+        reasoning="none",
+        context_window="1M",
+        description="Legacy GPT-4.1 Mini. Fast and cheap for structured tasks.",
+    ),
+    # ── Google ─────────────────────────────────────────────────────────────
+    "gemini-pro": ModelAlias(
+        "google",
+        "gemini-2.5-pro",
+        "standard",
+        reasoning="optional",
+        context_window="1M",
+        description="Most capable Gemini. Deep reasoning, coding, and long-context tasks.",
+    ),
+    "gemini-flash": ModelAlias(
+        "google",
+        "gemini-2.5-flash",
+        "standard",
+        reasoning="optional",
+        context_window="1M",
+        description="Best price-performance Gemini. Low latency with configurable thinking.",
+    ),
+    "gemini-flash-lite": ModelAlias(
+        "google",
+        "gemini-2.5-flash-lite",
+        "free",
+        reasoning="none",
+        context_window="1M",
+        description="Fastest and most budget-friendly Gemini. High-volume workloads.",
+    ),
 }
 
 # Low-cost defaults per provider for auto-selected judges.
@@ -261,7 +356,8 @@ def list_all_models() -> list[dict[str, str]]:
     """Return metadata for all registered model aliases.
 
     Returns:
-        List of dicts with keys: alias, provider, model_id, tier.
+        List of dicts with keys: alias, provider, model_id, tier, reasoning,
+        context_window, description.
     """
     return [
         {
@@ -269,6 +365,9 @@ def list_all_models() -> list[dict[str, str]]:
             "provider": meta.provider,
             "model_id": meta.model_id,
             "tier": meta.tier,
+            "reasoning": meta.reasoning,
+            "context_window": meta.context_window,
+            "description": meta.description,
         }
         for alias, meta in MODEL_ALIASES.items()
     ]

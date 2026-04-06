@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     )
     from duelyst_ai_core.models.registry import (
         ModelAlias,
+        ModelReasoning,
         ModelTier,
         create_model,
         get_judge_model,
@@ -96,6 +97,7 @@ __all__ = [
     "MarkdownFormatter",
     "ModelAlias",
     "ModelConfig",
+    "ModelReasoning",
     "ModelTier",
     "RichTerminalFormatter",
     "RoundStarted",
@@ -132,6 +134,7 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "SynthesisCompleted": ("duelyst_ai_core.orchestrator.events", "SynthesisCompleted"),
     "TurnCompleted": ("duelyst_ai_core.orchestrator.events", "TurnCompleted"),
     "ModelAlias": ("duelyst_ai_core.models.registry", "ModelAlias"),
+    "ModelReasoning": ("duelyst_ai_core.models.registry", "ModelReasoning"),
     "ModelTier": ("duelyst_ai_core.models.registry", "ModelTier"),
     "create_model": ("duelyst_ai_core.models.registry", "create_model"),
     "get_judge_model": ("duelyst_ai_core.models.registry", "get_judge_model"),
