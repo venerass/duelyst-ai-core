@@ -221,9 +221,26 @@ Never expose raw provider model IDs to users. All user-facing model names go thr
 
 - **`E2B_API_KEY` in `.env.example` is Phase 4 only.** Cloud code execution via E2B is not implemented. The key is documented to avoid confusion when developers see it.
 
+- **`ModelAlias` must not carry product display concerns.** Fields like `reasoning`, `context_window`, and `description` belong in the API's product catalog (`domain/models/catalog.py`), not here. `ModelAlias` is intentionally thin: `(provider, model_id, tier)` only. Adding display fields back will cause them to leak into the OSS library and couple it to product decisions.
+
+- **Two aliases can map to the same `model_id` with different tiers.** This is intentional for reasoning variants (e.g., `gpt-5` standard vs `gpt-5-high` pro both map to `gpt-5.4`). The alias is the unit of tier gating and display; the `model_id` is what the provider API receives.
+
+- **Legacy compatibility aliases must stay in `MODEL_ALIASES` indefinitely.** Existing debates in the database store `model_id` values resolved from old aliases. Removing a legacy alias (`gpt-4o`, `gemini-2.5-flash`, etc.) will break `build_debate_config()` in the API for those historical debates. Legacy aliases are not shown in the product catalog — they exist only for resolution.
+
+- **`uv run pytest` may silently use the wrong venv if a foreign `VIRTUAL_ENV` is active.** Use `uv run -- python -m pytest` when another project's venv is activated, or deactivate first. The `VIRTUAL_ENV` mismatch warning is printed but execution still succeeds using the project's own venv.
+
+- **Bumping the version in `pyproject.toml` is the only release step needed.** Push a `vX.Y.Z` tag and the GitHub Actions workflow handles build, quality gate, and PyPI publish automatically via Trusted Publishing — no token management required. The tag version must exactly match `pyproject.toml`.
+
 ---
 
 ## 9. Development Setup & Testing
+
+### Testing Standards
+
+- **Run tests with `uv run -- python -m pytest -v`**, not bare `pytest`, to avoid venv confusion when multiple Python projects are open.
+- **All unit tests mock LLM calls** — no API keys are needed for `uv run pytest`. The full suite (~191 tests) runs in ~3 seconds.
+- **Integration tests (`tests/integration/`) require real API keys** and are excluded from CI by default (`-m integration` marker). Run them manually before major releases.
+- **After adding a new model alias**, add a test in `test_registry.py` covering the alias, tier, and provider. After changing `_JUDGE_DEFAULTS`, update `test_with_judge` in `test_main.py` to assert the new judge model ID.
 
 ### Environment Setup
 
