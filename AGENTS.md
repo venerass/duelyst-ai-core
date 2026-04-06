@@ -291,6 +291,39 @@ uv run duelyst debate "Nuclear energy vs renewables" \
 uv run duelyst debate "Topic" --output json > result.json
 ```
 
+### Release & Publish to PyPI
+
+Publishing is fully automated via GitHub Actions (`.github/workflows/publish.yml`). **No PyPI token or manual upload is needed.** The workflow uses [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) with `id-token: write` permissions.
+
+**To release a new version:**
+
+```bash
+# 1. Bump the version in pyproject.toml
+#    Edit [project] version = "X.Y.Z"
+
+# 2. Commit the version bump
+git add pyproject.toml
+git commit -m "chore: bump version to X.Y.Z"
+
+# 3. Create and push the tag (must match pyproject.toml exactly)
+git tag vX.Y.Z
+git push origin main --tags
+```
+
+That's it. Pushing the tag triggers the workflow, which:
+1. Runs the full quality gate (ruff, mypy, pytest) on Python 3.11, 3.12, and 3.13
+2. Verifies the tag version matches `pyproject.toml`
+3. Builds the sdist and wheel with `uv build`
+4. Publishes to PyPI via `pypa/gh-action-pypi-publish`
+5. Creates a GitHub Release with auto-generated notes and the build artifacts attached
+
+Monitor progress in the **Actions** tab on GitHub. If the quality gate fails, fix and re-tag (`git tag -f vX.Y.Z && git push origin --tags --force`).
+
+**After publish:** any `duelyst-ai-api` consumer can upgrade with:
+```bash
+uv add duelyst-ai-core[search]==X.Y.Z
+```
+
 ---
 
 ## 10. Keeping This File Current
@@ -303,5 +336,6 @@ Update this file when:
 - A significant bug, gotcha, or integration quirk is discovered
 - The tech stack or Python version support range changes
 - The relationship with `duelyst-ai-api` changes
+- The release or CI/CD process changes
 
 Do **not** update for routine bug fixes, dependency patch bumps, or changes that don't affect how an agent should write code.
