@@ -42,7 +42,7 @@ class TestResolveAlias:
     def test_google_alias(self) -> None:
         provider, model_id = resolve_alias("gemini-flash")
         assert provider == "google"
-        assert model_id == "gemini-2.5-flash"
+        assert model_id == "gemini-3.0-flash"
 
     def test_full_model_id_claude(self) -> None:
         provider, model_id = resolve_alias("claude-sonnet-4-6")
@@ -127,18 +127,18 @@ class TestGetJudgeModel:
         b = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         judge = get_judge_model(a, b)
         assert judge.provider == "google"
-        assert judge.model_id == "gemini-2.5-flash"
+        assert judge.model_id == "gemini-3.0-flash"
 
     def test_anthropic_google_gives_openai(self) -> None:
         a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
-        b = ModelConfig(provider="google", model_id="gemini-2.5-flash")
+        b = ModelConfig(provider="google", model_id="gemini-3.0-flash")
         judge = get_judge_model(a, b)
         assert judge.provider == "openai"
         assert judge.model_id == "gpt-5.4-mini"
 
     def test_openai_google_gives_anthropic(self) -> None:
         a = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
-        b = ModelConfig(provider="google", model_id="gemini-2.5-flash")
+        b = ModelConfig(provider="google", model_id="gemini-3.0-flash")
         judge = get_judge_model(a, b)
         assert judge.provider == "anthropic"
         assert judge.model_id == "claude-haiku-4-5"
@@ -166,13 +166,15 @@ class TestGetModelTier:
 
     def test_standard_tier(self) -> None:
         assert get_model_tier("claude-sonnet") == "standard"
+        assert get_model_tier("gpt-5") == "standard"
         assert get_model_tier("gpt-4o") == "standard"
         assert get_model_tier("gemini-flash") == "standard"
         assert get_model_tier("gemini-pro") == "standard"
 
     def test_pro_tier(self) -> None:
         assert get_model_tier("claude-opus") == "pro"
-        assert get_model_tier("gpt-5") == "pro"
+        assert get_model_tier("gpt-5-high") == "pro"
+        assert get_model_tier("gemini-pro-high") == "pro"
 
     def test_unknown_alias(self) -> None:
         with pytest.raises(ConfigError, match="Unknown model alias"):
@@ -196,8 +198,9 @@ class TestListModelsByTier:
     def test_pro_models(self) -> None:
         pro = list_models_by_tier("pro")
         assert "claude-opus" in pro
-        assert "gpt-5" in pro
-        assert len(pro) == 2
+        assert "gpt-5-high" in pro
+        assert "gemini-pro-high" in pro
+        assert len(pro) == 3
 
     def test_standard_models(self) -> None:
         standard = list_models_by_tier("standard")
