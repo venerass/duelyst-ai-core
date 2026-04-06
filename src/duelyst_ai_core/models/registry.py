@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
 
 from duelyst_ai_core.exceptions import ConfigError
 
@@ -22,25 +23,37 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Maps current friendly aliases to (provider, model_id) tuples for CLI convenience.
-MODEL_ALIASES: dict[str, tuple[str, str]] = {
+ModelTier = Literal["free", "standard", "pro"]
+
+
+@dataclass(frozen=True)
+class ModelAlias:
+    """Metadata for a model alias including provider, model ID, and access tier."""
+
+    provider: str
+    model_id: str
+    tier: ModelTier
+
+
+# Maps current friendly aliases to ModelAlias entries for CLI convenience and tier gating.
+MODEL_ALIASES: dict[str, ModelAlias] = {
     # Anthropic current generation
-    "claude-opus": ("anthropic", "claude-opus-4-6"),
-    "claude-sonnet": ("anthropic", "claude-sonnet-4-6"),
-    "claude-haiku": ("anthropic", "claude-haiku-4-5"),
+    "claude-opus": ModelAlias("anthropic", "claude-opus-4-6", "pro"),
+    "claude-sonnet": ModelAlias("anthropic", "claude-sonnet-4-6", "standard"),
+    "claude-haiku": ModelAlias("anthropic", "claude-haiku-4-5", "free"),
     # OpenAI current generation
-    "gpt-5": ("openai", "gpt-5.4"),
-    "gpt-mini": ("openai", "gpt-5.4-mini"),
-    "gpt-nano": ("openai", "gpt-5.4-nano"),
+    "gpt-5": ModelAlias("openai", "gpt-5.4", "pro"),
+    "gpt-mini": ModelAlias("openai", "gpt-5.4-mini", "free"),
+    "gpt-nano": ModelAlias("openai", "gpt-5.4-nano", "free"),
     # Legacy compatibility aliases
-    "gpt-4o": ("openai", "gpt-4o"),
-    "gpt-4o-mini": ("openai", "gpt-4o-mini"),
-    "gpt-4.1": ("openai", "gpt-4.1"),
-    "gpt-4.1-mini": ("openai", "gpt-4.1-mini"),
+    "gpt-4o": ModelAlias("openai", "gpt-4o", "standard"),
+    "gpt-4o-mini": ModelAlias("openai", "gpt-4o-mini", "standard"),
+    "gpt-4.1": ModelAlias("openai", "gpt-4.1", "standard"),
+    "gpt-4.1-mini": ModelAlias("openai", "gpt-4.1-mini", "standard"),
     # Google stable/current
-    "gemini-pro": ("google", "gemini-2.5-pro"),
-    "gemini-flash": ("google", "gemini-2.5-flash"),
-    "gemini-flash-lite": ("google", "gemini-2.5-flash-lite"),
+    "gemini-pro": ModelAlias("google", "gemini-2.5-pro", "standard"),
+    "gemini-flash": ModelAlias("google", "gemini-2.5-flash", "standard"),
+    "gemini-flash-lite": ModelAlias("google", "gemini-2.5-flash-lite", "free"),
 }
 
 # Low-cost defaults per provider for auto-selected judges.
@@ -124,8 +137,9 @@ def resolve_alias(name: str) -> tuple[str, str]:
     Raises:
         ConfigError: If the model name cannot be resolved.
     """
-    if name in MODEL_ALIASES:
-        return MODEL_ALIASES[name]
+    entry = MODEL_ALIASES.get(name)
+    if entry is not None:
+        return (entry.provider, entry.model_id)
 
     # Try to infer provider from model_id prefix
     if name.startswith("claude"):
@@ -210,3 +224,51 @@ def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:
     )
 
     return ModelConfigCls(provider=judge_provider, model_id=judge_model_id)
+
+
+def get_model_tier(alias: str) -> ModelTier:
+    """Return the access tier for a known model alias.
+
+    Args:
+        alias: A model alias (e.g. "claude-haiku").
+
+    Returns:
+        The tier: "free", "standard", or "pro".
+
+    Raises:
+        ConfigError: If the alias is not recognised.
+    """
+    entry = MODEL_ALIASES.get(alias)
+    if entry is None:
+        msg = f"Unknown model alias: {alias!r}"
+        raise ConfigError(msg)
+    return entry.tier
+
+
+def list_models_by_tier(tier: ModelTier) -> list[str]:
+    """Return all aliases matching the given tier.
+
+    Args:
+        tier: One of "free", "standard", or "pro".
+
+    Returns:
+        Sorted list of matching alias names.
+    """
+    return sorted(alias for alias, meta in MODEL_ALIASES.items() if meta.tier == tier)
+
+
+def list_all_models() -> list[dict[str, str]]:
+    """Return metadata for all registered model aliases.
+
+    Returns:
+        List of dicts with keys: alias, provider, model_id, tier.
+    """
+    return [
+        {
+            "alias": alias,
+            "provider": meta.provider,
+            "model_id": meta.model_id,
+            "tier": meta.tier,
+        }
+        for alias, meta in MODEL_ALIASES.items()
+    ]

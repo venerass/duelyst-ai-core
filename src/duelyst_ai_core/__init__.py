@@ -50,7 +50,16 @@ if TYPE_CHECKING:
         MarkdownFormatter,
         RichTerminalFormatter,
     )
-    from duelyst_ai_core.models.registry import create_model, get_judge_model, resolve_alias
+    from duelyst_ai_core.models.registry import (
+        ModelAlias,
+        ModelTier,
+        create_model,
+        get_judge_model,
+        get_model_tier,
+        list_all_models,
+        list_models_by_tier,
+        resolve_alias,
+    )
     from duelyst_ai_core.orchestrator.callbacks import (
         CollectorCallback,
         DebateEventCallback,
@@ -85,13 +94,18 @@ __all__ = [
     "JsonFormatter",
     "JudgeSynthesis",
     "MarkdownFormatter",
+    "ModelAlias",
     "ModelConfig",
+    "ModelTier",
     "RichTerminalFormatter",
     "RoundStarted",
     "SynthesisCompleted",
     "TurnCompleted",
     "create_model",
     "get_judge_model",
+    "get_model_tier",
+    "list_all_models",
+    "list_models_by_tier",
     "resolve_alias",
 ]
 
@@ -117,8 +131,13 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "RoundStarted": ("duelyst_ai_core.orchestrator.events", "RoundStarted"),
     "SynthesisCompleted": ("duelyst_ai_core.orchestrator.events", "SynthesisCompleted"),
     "TurnCompleted": ("duelyst_ai_core.orchestrator.events", "TurnCompleted"),
+    "ModelAlias": ("duelyst_ai_core.models.registry", "ModelAlias"),
+    "ModelTier": ("duelyst_ai_core.models.registry", "ModelTier"),
     "create_model": ("duelyst_ai_core.models.registry", "create_model"),
     "get_judge_model": ("duelyst_ai_core.models.registry", "get_judge_model"),
+    "get_model_tier": ("duelyst_ai_core.models.registry", "get_model_tier"),
+    "list_all_models": ("duelyst_ai_core.models.registry", "list_all_models"),
+    "list_models_by_tier": ("duelyst_ai_core.models.registry", "list_models_by_tier"),
     "resolve_alias": ("duelyst_ai_core.models.registry", "resolve_alias"),
 }
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "duelyst-ai-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source AI debate engine — multi-model adversarial debates with LangGraph orchestration"
 readme = "README.md"
 license = "MIT"
