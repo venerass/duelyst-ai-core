@@ -75,11 +75,6 @@ class DebateConfig(BaseModel):
     convergence_threshold: int = Field(default=7, ge=1, le=10)
     convergence_rounds: int = Field(default=2, ge=1, le=5)
     tools_enabled: list[ToolType] = Field(default_factory=list)
-    language: str | None = Field(
-        default=None,
-        max_length=50,
-        description="Language for the debate. If set, agents respond in this language.",
-    )
 
 
 class DebateStatus(StrEnum):

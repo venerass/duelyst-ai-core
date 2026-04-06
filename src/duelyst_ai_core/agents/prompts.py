@@ -91,17 +91,6 @@ Respond with valid structured output matching the required schema.\
 """
 
 
-def _language_instruction(language: str | None) -> str:
-    """Build a language instruction for the agent, if a language is specified."""
-    if not language:
-        return ""
-    return (
-        f"CRITICAL INSTRUCTION: You MUST write your entire response in {language}. "
-        f"All arguments, key points, evidence descriptions, and reasoning must be in {language}. "
-        "Do not switch languages at any point.\n"
-    )
-
-
 def build_debater_user_message(
     *,
     topic: str,
@@ -110,7 +99,6 @@ def build_debater_user_message(
     debate_history: str,
     round_number: int,
     is_first_turn: bool,
-    language: str | None = None,
 ) -> str:
     """Build the user message for a debater turn.
 
@@ -123,16 +111,11 @@ def build_debater_user_message(
         debate_history: Formatted transcript of previous turns.
         round_number: Current round number.
         is_first_turn: Whether this is the agent's opening argument.
-        language: Optional language for the debate.
 
     Returns:
         The formatted user message string.
     """
     parts = []
-
-    lang_instruction = _language_instruction(language)
-    if lang_instruction:
-        parts.append(lang_instruction)
 
     parts.append(f"## Debate Topic\n{topic}\n")
     parts.append(f"## Your Side: {side}\n")
@@ -162,7 +145,6 @@ def build_judge_user_message(
     topic: str,
     transcript: str,
     total_rounds: int,
-    language: str | None = None,
 ) -> str:
     """Build the user message for the judge synthesis.
 
@@ -170,14 +152,11 @@ def build_judge_user_message(
         topic: The debate topic.
         transcript: The complete formatted debate transcript.
         total_rounds: Total number of completed rounds.
-        language: Optional language for the synthesis.
 
     Returns:
         The formatted user message string.
     """
-    lang_instruction = _language_instruction(language)
     return (
-        f"{lang_instruction}"
         f"## Debate Topic\n{topic}\n\n"
         f"## Debate Transcript ({total_rounds} rounds)\n{transcript}\n\n"
         "## Your Task\n"
