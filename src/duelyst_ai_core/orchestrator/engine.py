@@ -92,7 +92,19 @@ class DebateOrchestrator:
         model_b = create_model(config.model_b)
 
         judge_config = config.judge_model or get_judge_model(config.model_a, config.model_b)
+        self._judge_config = judge_config
         judge_model = create_model(judge_config)
+
+        logger.info(
+            "Orchestrator init — A: %s/%s, B: %s/%s, Judge: %s/%s, topic: %s",
+            config.model_a.provider,
+            config.model_a.model_id,
+            config.model_b.provider,
+            config.model_b.model_id,
+            judge_config.provider,
+            judge_config.model_id,
+            config.topic[:80],
+        )
 
         self._debater_a = DebaterAgent(model=model_a, tools=tools)
         self._debater_b = DebaterAgent(model=model_b, tools=tools)
@@ -297,7 +309,13 @@ class DebateOrchestrator:
 
     async def run_judge(self, state: OrchestratorState) -> dict[str, Any]:
         """Invoke judge agent to produce synthesis."""
-        logger.info("Running judge synthesis")
+        logger.info(
+            "Running judge synthesis — model: %s/%s, rounds: %d, turns: %d",
+            self._judge_config.provider,
+            self._judge_config.model_id,
+            state["current_round"],
+            len(state["turns"]),
+        )
         await self._emit(SynthesisStarted())
 
         # Format full transcript for the judge
@@ -395,6 +413,12 @@ class DebateOrchestrator:
                 )
                 await queue.put(DebateCompleted(result=debate_result))
             except Exception as exc:
+                logger.exception(
+                    "Debate graph failed — topic: %s, error: %s: %s",
+                    self._config.topic[:80],
+                    type(exc).__name__,
+                    exc,
+                )
                 await queue.put(DebateError(error_type=type(exc).__name__, error_message=str(exc)))
             finally:
                 await queue.put(None)  # sentinel
