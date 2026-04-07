@@ -231,6 +231,8 @@ Never expose raw provider model IDs to users. All user-facing model names go thr
 
 - **Bumping the version in `pyproject.toml` is the only release step needed.** Push a `vX.Y.Z` tag and the GitHub Actions workflow handles build, quality gate, and PyPI publish automatically via Trusted Publishing — no token management required. The tag version must exactly match `pyproject.toml`.
 
+- **Multiple agents may work on this repository in parallel.** When committing, only `git add` the specific files you changed — never use `git add .` or `git add -A`. Another agent may have uncommitted work in the same repo. Use `git add <file1> <file2>` explicitly. Same applies to `git stash` and `git reset` — scope them to your files only.
+
 ---
 
 ## 9. Development Setup & Testing

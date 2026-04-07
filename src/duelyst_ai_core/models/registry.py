@@ -72,6 +72,11 @@ _JUDGE_DEFAULTS: dict[str, str] = {
 }
 
 
+# Default resilience settings for LLM calls.
+_DEFAULT_MAX_RETRIES = 3
+_DEFAULT_TIMEOUT = 120.0
+
+
 def _create_anthropic(config: ModelConfig) -> BaseChatModel:
     """Create an Anthropic (Claude) chat model."""
     from langchain_anthropic import ChatAnthropic
@@ -86,6 +91,8 @@ def _create_anthropic(config: ModelConfig) -> BaseChatModel:
         temperature=config.temperature,
         max_tokens=config.max_tokens,
         api_key=api_key,
+        max_retries=_DEFAULT_MAX_RETRIES,
+        timeout=_DEFAULT_TIMEOUT,
     )
 
 
@@ -103,6 +110,8 @@ def _create_openai(config: ModelConfig) -> BaseChatModel:
         temperature=config.temperature,
         max_tokens=config.max_tokens,
         api_key=api_key,
+        max_retries=_DEFAULT_MAX_RETRIES,
+        timeout=_DEFAULT_TIMEOUT,
     )
 
 
@@ -120,6 +129,8 @@ def _create_google(config: ModelConfig) -> BaseChatModel:
         temperature=config.temperature,
         max_output_tokens=config.max_tokens,
         google_api_key=api_key,
+        max_retries=_DEFAULT_MAX_RETRIES,
+        timeout=_DEFAULT_TIMEOUT,
     )
 
 
