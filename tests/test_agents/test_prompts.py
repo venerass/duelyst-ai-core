@@ -38,7 +38,6 @@ class TestBuildDebaterUserMessage:
             is_first_turn=True,
         )
         assert "Monoliths vs microservices" in msg
-        assert "Side: A" in msg
         assert "Defend monoliths" in msg
         assert "opening argument" in msg
         assert "Round 1" in msg
@@ -53,7 +52,6 @@ class TestBuildDebaterUserMessage:
             is_first_turn=False,
         )
         assert "Test topic" in msg
-        assert "Side: B" in msg
         assert "Previous debate content..." in msg
         assert "Respond to your opponent" in msg
         assert "Instructions" not in msg

@@ -127,7 +127,6 @@ def build_debater_user_message(
     parts = []
 
     parts.append(f"## Debate Topic\n{topic}\n")
-    parts.append(f"## Your Side: {side}\n")
 
     if instructions:
         parts.append(f"## Your Instructions\n{instructions}\n")
