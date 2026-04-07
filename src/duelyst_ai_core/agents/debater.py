@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from langchain.agents import create_agent
 
-from duelyst_ai_core.agents.prompts import DEBATER_SYSTEM_PROMPT
+from duelyst_ai_core.agents.prompts import DEBATER_SYSTEM_PROMPT, build_debater_system_prompt
 from duelyst_ai_core.agents.schemas import AgentResponse
 
 if TYPE_CHECKING:
@@ -38,19 +38,25 @@ class DebaterAgent:
     Args:
         model: A LangChain chat model (already configured).
         tools: Optional tools for evidence gathering (search, code).
+        agent_label: Identity label for the agent (e.g. "Debater A").
+            When provided, the system prompt includes this identity.
     """
 
     def __init__(
         self,
         model: BaseChatModel,
         tools: list[BaseTool] | None = None,
+        agent_label: str | None = None,
     ) -> None:
         self._model = model
         self._tools = tools or []
+        system_prompt = (
+            build_debater_system_prompt(agent_label) if agent_label else DEBATER_SYSTEM_PROMPT
+        )
         self.graph: CompiledStateGraph[Any, Any, Any] = create_agent(
             model,
             tools=self._tools,
-            system_prompt=DEBATER_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             response_format=AgentResponse,
         )
 

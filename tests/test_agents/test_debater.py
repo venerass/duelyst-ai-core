@@ -63,6 +63,29 @@ class TestDebaterAgentInit:
             rf = call_kwargs.kwargs.get("response_format") or call_kwargs[1].get("response_format")
             assert rf is AgentResponse
 
+    def test_agent_label_customizes_system_prompt(self) -> None:
+        """When agent_label is provided, system prompt includes the identity."""
+        with patch("duelyst_ai_core.agents.debater.create_agent") as mock_create:
+            mock_create.return_value = MagicMock()
+            model = MagicMock()
+            DebaterAgent(model=model, agent_label="Debater A")
+
+            call_kwargs = mock_create.call_args
+            sp = call_kwargs.kwargs.get("system_prompt") or call_kwargs[1].get("system_prompt")
+            assert "Debater A" in sp
+            assert "truth" in sp
+
+    def test_no_agent_label_uses_default_prompt(self) -> None:
+        """Without agent_label, uses the default static system prompt."""
+        with patch("duelyst_ai_core.agents.debater.create_agent") as mock_create:
+            mock_create.return_value = MagicMock()
+            model = MagicMock()
+            DebaterAgent(model=model)
+
+            call_kwargs = mock_create.call_args
+            sp = call_kwargs.kwargs.get("system_prompt") or call_kwargs[1].get("system_prompt")
+            assert "a debate participant" in sp
+
 
 class TestDebaterGraphInvocation:
     async def test_invoke_returns_structured_response(self, mock_response: AgentResponse) -> None:

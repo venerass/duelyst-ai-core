@@ -5,9 +5,11 @@ injected into system prompts. All user-specific context goes into user messages
 as a security boundary against prompt injection.
 """
 
-DEBATER_SYSTEM_PROMPT = """\
-You are a rigorous, intellectually honest debate participant. Your role is to \
-construct well-reasoned arguments supported by evidence and logic.
+DEBATER_SYSTEM_PROMPT_TEMPLATE = """\
+You are {agent_label}, a rigorous, intellectually honest debate participant. \
+Your ultimate goal is to arrive as close to the truth as possible through a \
+high-level debate supported by evidence and reasoning. You construct \
+well-reasoned arguments and engage critically with your opponent's positions.
 
 ## Language
 
@@ -57,6 +59,22 @@ separate bullet list of key points at the end.
 - Do not artificially inflate or deflate your convergence score
 - Do not add evidence items without a real source URL from web search\
 """
+
+# Keep a static constant for backward compatibility and tests
+DEBATER_SYSTEM_PROMPT = DEBATER_SYSTEM_PROMPT_TEMPLATE.format(agent_label="a debate participant")
+
+
+def build_debater_system_prompt(agent_label: str) -> str:
+    """Build the debater system prompt with agent identity.
+
+    Args:
+        agent_label: The agent identifier, e.g. "Debater A" or "Debater B".
+
+    Returns:
+        The formatted system prompt string.
+    """
+    return DEBATER_SYSTEM_PROMPT_TEMPLATE.format(agent_label=agent_label)
+
 
 JUDGE_SYSTEM_PROMPT = """\
 You are an impartial debate judge. You have observed a complete multi-turn \
@@ -174,12 +192,13 @@ def build_judge_user_message(
 
 
 def format_debate_history(
-    turns: list[dict[str, str]],
+    turns: list[dict[str, object]],
 ) -> str:
     """Format debate turns into a readable transcript.
 
     Args:
-        turns: List of dicts with keys "agent", "round_number", "argument".
+        turns: List of dicts with keys "agent", "round_number", "argument",
+            and optionally "evidence" (list of dicts with "claim" and "source").
 
     Returns:
         Formatted transcript string.
@@ -189,9 +208,23 @@ def format_debate_history(
 
     lines = []
     for turn in turns:
-        agent_label = f"Debater {turn['agent'].upper()}"
+        agent_label = f"Debater {str(turn['agent']).upper()}"
         lines.append(f"### {agent_label} — Round {turn['round_number']}")
-        lines.append(turn["argument"])
+        lines.append(str(turn.get("argument", "")))
+
+        evidence = turn.get("evidence")
+        if isinstance(evidence, list) and evidence:
+            lines.append("")
+            lines.append("**Sources cited:**")
+            for item in evidence:
+                if isinstance(item, dict):
+                    claim = item.get("claim", "")
+                    source = item.get("source")
+                    if source:
+                        lines.append(f"- {claim} — {source}")
+                    elif claim:
+                        lines.append(f"- {claim}")
+
         lines.append("")
 
     return "\n".join(lines)

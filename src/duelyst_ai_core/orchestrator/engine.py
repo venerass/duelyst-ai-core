@@ -69,6 +69,20 @@ def _get_turn_argument(turn: dict[str, object]) -> str:
     return ""
 
 
+def _get_turn_evidence(turn: dict[str, object]) -> list[dict[str, str | None]]:
+    """Safely extract evidence list from a serialized debate turn."""
+    response = turn.get("response")
+    if isinstance(response, dict):
+        evidence = response.get("evidence")
+        if isinstance(evidence, list):
+            return [
+                {"claim": str(e.get("claim", "")), "source": e.get("source")}
+                for e in evidence
+                if isinstance(e, dict)
+            ]
+    return []
+
+
 class DebateOrchestrator:
     """Outer LangGraph graph that manages the full debate lifecycle.
 
@@ -110,8 +124,8 @@ class DebateOrchestrator:
             config.topic[:80],
         )
 
-        self._debater_a = DebaterAgent(model=model_a, tools=tools)
-        self._debater_b = DebaterAgent(model=model_b, tools=tools)
+        self._debater_a = DebaterAgent(model=model_a, tools=tools, agent_label="Debater A")
+        self._debater_b = DebaterAgent(model=model_b, tools=tools, agent_label="Debater B")
         self._judge = JudgeAgent(model=judge_model)
 
         self.graph = self.build_graph()
@@ -194,11 +208,12 @@ class DebateOrchestrator:
         logger.info("Running debater %s, round %d", role.upper(), current_round)
 
         # Build debate history for context
-        history_dicts = [
+        history_dicts: list[dict[str, object]] = [
             {
                 "agent": str(t.get("agent", "")),
                 "round_number": str(t.get("round_number", "")),
                 "argument": _get_turn_argument(t),
+                "evidence": _get_turn_evidence(t),
             }
             for t in state["turns"]
         ]
@@ -330,11 +345,12 @@ class DebateOrchestrator:
         await self._emit(SynthesisStarted())
 
         # Format full transcript for the judge
-        history_dicts = [
+        history_dicts: list[dict[str, object]] = [
             {
                 "agent": str(t.get("agent", "")),
                 "round_number": str(t.get("round_number", "")),
                 "argument": _get_turn_argument(t),
+                "evidence": _get_turn_evidence(t),
             }
             for t in state["turns"]
         ]

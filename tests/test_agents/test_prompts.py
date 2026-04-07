@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from duelyst_ai_core.agents.prompts import (
     DEBATER_SYSTEM_PROMPT,
+    DEBATER_SYSTEM_PROMPT_TEMPLATE,
     JUDGE_SYSTEM_PROMPT,
+    build_debater_system_prompt,
     build_debater_user_message,
     build_judge_user_message,
     format_debate_history,
@@ -22,9 +24,35 @@ class TestSystemPrompts:
 
     def test_no_user_input_in_system_prompts(self) -> None:
         """System prompts must not contain format placeholders."""
-        for prompt in [DEBATER_SYSTEM_PROMPT, JUDGE_SYSTEM_PROMPT]:
+        # The static DEBATER_SYSTEM_PROMPT (default) should have no placeholders
+        assert "{" not in DEBATER_SYSTEM_PROMPT
+        assert "}" not in DEBATER_SYSTEM_PROMPT
+        for prompt in [JUDGE_SYSTEM_PROMPT]:
             assert "{" not in prompt
             assert "}" not in prompt
+
+    def test_debater_template_has_placeholder(self) -> None:
+        assert "{agent_label}" in DEBATER_SYSTEM_PROMPT_TEMPLATE
+
+    def test_build_debater_system_prompt_with_identity(self) -> None:
+        prompt = build_debater_system_prompt("Debater A")
+        assert "Debater A" in prompt
+        assert "arrive as close to the truth" in prompt
+        assert "{" not in prompt
+        assert "}" not in prompt
+
+    def test_build_debater_system_prompt_different_agents(self) -> None:
+        prompt_a = build_debater_system_prompt("Debater A")
+        prompt_b = build_debater_system_prompt("Debater B")
+        assert "Debater A" in prompt_a
+        assert "Debater B" in prompt_b
+        assert "Debater B" not in prompt_a
+        assert "Debater A" not in prompt_b
+
+    def test_debater_prompt_contains_purpose(self) -> None:
+        prompt = build_debater_system_prompt("Debater A")
+        assert "truth" in prompt
+        assert "evidence and reasoning" in prompt
 
 
 class TestBuildDebaterUserMessage:
@@ -107,3 +135,37 @@ class TestFormatDebateHistory:
         assert "Arg A1" in result
         assert "Arg B1" in result
         assert "Arg A2" in result
+
+    def test_with_evidence(self) -> None:
+        turns = [
+            {
+                "agent": "a",
+                "round_number": "1",
+                "argument": "My argument",
+                "evidence": [
+                    {"claim": "Fact one", "source": "https://example.com"},
+                    {"claim": "Fact two", "source": None},
+                ],
+            },
+        ]
+        result = format_debate_history(turns)
+        assert "My argument" in result
+        assert "Sources cited" in result
+        assert "Fact one" in result
+        assert "https://example.com" in result
+        assert "Fact two" in result
+
+    def test_without_evidence(self) -> None:
+        turns = [
+            {"agent": "a", "round_number": "1", "argument": "No sources"},
+        ]
+        result = format_debate_history(turns)
+        assert "No sources" in result
+        assert "Sources cited" not in result
+
+    def test_empty_evidence_list(self) -> None:
+        turns = [
+            {"agent": "a", "round_number": "1", "argument": "Arg", "evidence": []},
+        ]
+        result = format_debate_history(turns)
+        assert "Sources cited" not in result
