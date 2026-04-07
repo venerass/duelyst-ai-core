@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "duelyst-ai-core"
-version = "0.6.0"
+version = "0.6.1"
 description = "Open-source AI debate engine — multi-model adversarial debates with LangGraph orchestration"
 readme = "README.md"
 license = "MIT"
@@ -35,11 +35,12 @@ dependencies = [
     "typer>=0.24,<1.0",
     "rich>=14.0,<15.0",
     "langchain>=1.2.15",
+    "langchain-tavily>=0.2,<0.3",
 ]
 
 [project.optional-dependencies]
 search = [
-    "langchain-tavily>=0.2,<0.3",
+    # Kept for backwards compatibility — tavily is now a core dependency.
 ]
 
 [dependency-groups]
