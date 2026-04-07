@@ -60,7 +60,7 @@ class TestCreateAnthropic:
             temperature=0.7,
             max_tokens=4096,
             api_key="test-key",
-            max_retries=3,
+            max_retries=5,
             timeout=120.0,
         )
 
@@ -92,7 +92,7 @@ class TestCreateOpenAI:
             temperature=0.7,
             max_tokens=4096,
             api_key="test-key",
-            max_retries=3,
+            max_retries=5,
             timeout=120.0,
         )
 
@@ -124,7 +124,7 @@ class TestCreateGoogle:
             temperature=0.7,
             max_output_tokens=4096,
             google_api_key="test-key",
-            max_retries=3,
+            max_retries=5,
             timeout=120.0,
         )
 

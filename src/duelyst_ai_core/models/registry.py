@@ -77,7 +77,10 @@ _JUDGE_BY_MISSING_PROVIDER: list[tuple[str, str, str]] = [
 
 
 # Default resilience settings for LLM calls.
-_DEFAULT_MAX_RETRIES = 3
+# Retries use exponential backoff.  5 retries ≈ 60 s total wait, which is
+# reasonable for a background debate task and survives most transient
+# provider overloads (Anthropic 529, OpenAI 429, etc.).
+_DEFAULT_MAX_RETRIES = 5
 _DEFAULT_TIMEOUT = 120.0
 
 
