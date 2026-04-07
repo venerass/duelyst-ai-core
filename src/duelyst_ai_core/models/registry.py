@@ -238,10 +238,7 @@ def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:
             return ModelConfigCls(provider=judge_provider, model_id=judge_model_id)
 
     # Should be unreachable with 3 providers and 2 debaters, but guard anyway.
-    msg = (
-        f"Cannot auto-select judge: all providers in use "
-        f"({model_a.provider}, {model_b.provider})"
-    )
+    msg = f"Cannot auto-select judge: all providers in use ({model_a.provider}, {model_b.provider})"
     raise ConfigError(msg)
 
 
