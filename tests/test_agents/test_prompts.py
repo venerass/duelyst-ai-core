@@ -5,7 +5,6 @@ from __future__ import annotations
 from duelyst_ai_core.agents.prompts import (
     DEBATER_SYSTEM_PROMPT,
     JUDGE_SYSTEM_PROMPT,
-    REFLECTION_PROMPT,
     build_debater_user_message,
     build_judge_user_message,
     format_debate_history,
@@ -17,17 +16,13 @@ class TestSystemPrompts:
         assert isinstance(DEBATER_SYSTEM_PROMPT, str)
         assert len(DEBATER_SYSTEM_PROMPT) > 100
 
-    def test_reflection_prompt_is_static(self) -> None:
-        assert isinstance(REFLECTION_PROMPT, str)
-        assert len(REFLECTION_PROMPT) > 50
-
     def test_judge_prompt_is_static(self) -> None:
         assert isinstance(JUDGE_SYSTEM_PROMPT, str)
         assert len(JUDGE_SYSTEM_PROMPT) > 100
 
     def test_no_user_input_in_system_prompts(self) -> None:
         """System prompts must not contain format placeholders."""
-        for prompt in [DEBATER_SYSTEM_PROMPT, REFLECTION_PROMPT, JUDGE_SYSTEM_PROMPT]:
+        for prompt in [DEBATER_SYSTEM_PROMPT, JUDGE_SYSTEM_PROMPT]:
             assert "{" not in prompt
             assert "}" not in prompt
 
