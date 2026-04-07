@@ -106,7 +106,7 @@ DebateCompleted | DebateError event
 
 1. **Agents never receive user input in their system prompt.** Topic, instructions, and debate history go into the user message (via `build_debater_user_message()`). System prompts are static strings. This is a hard security boundary against prompt injection.
 
-2. **The judge model defaults to `claude-sonnet-4-6`.** `get_judge_model(model_a, model_b)` always picks `claude-sonnet-4-6` unless both debaters are Anthropic, in which case it falls back to `gpt-5.4-mini` (OpenAI) or `gemini-3-flash-preview` (Google).
+2. **The judge model defaults to `claude-sonnet-4-6`.** `get_judge_model(model_a, model_b)` picks the best model from the provider not used by either debater, with priority: anthropic (`claude-sonnet-4-6`) > openai (`gpt-5.4`) > google (`gemini-3.1-pro-preview`). When both debaters share a provider (e.g. openai vs openai), the highest-priority absent provider wins (sonnet).
 
 3. **Convergence requires both agents to agree.** `check_convergence()` returns `True` only if the last `convergence_rounds` entries in `convergence_history` all have `score_a >= threshold AND score_b >= threshold`. One agent cannot unilaterally end the debate.
 

@@ -113,40 +113,48 @@ class TestCreateModel:
 
 
 class TestGetJudgeModel:
-    def test_both_anthropic_picks_fallback(self) -> None:
-        """When both debaters are Anthropic, judge falls back to another provider."""
-        a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
-        b = ModelConfig(provider="anthropic", model_id="claude-opus-4-6")
-        judge = get_judge_model(a, b)
-        assert judge.provider != "anthropic"
-        assert judge.provider in ("openai", "google")
-
-    def test_different_providers_prefers_sonnet(self) -> None:
-        """When debaters use different providers, judge defaults to claude-sonnet."""
+    def test_anthropic_vs_openai_gives_gemini(self) -> None:
+        """Both anthropic and openai present → google judge."""
         a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
         b = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         judge = get_judge_model(a, b)
-        assert judge.provider == "anthropic"
-        assert judge.model_id == "claude-sonnet-4-6"
+        assert judge.provider == "google"
+        assert judge.model_id == "gemini-3.1-pro-preview"
 
-    def test_anthropic_google_prefers_sonnet(self) -> None:
+    def test_anthropic_vs_google_gives_openai(self) -> None:
         a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
         b = ModelConfig(provider="google", model_id="gemini-3-flash-preview")
         judge = get_judge_model(a, b)
-        assert judge.provider == "anthropic"
-        assert judge.model_id == "claude-sonnet-4-6"
+        assert judge.provider == "openai"
+        assert judge.model_id == "gpt-5.4"
 
-    def test_openai_google_prefers_sonnet(self) -> None:
+    def test_openai_vs_google_gives_sonnet(self) -> None:
         a = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         b = ModelConfig(provider="google", model_id="gemini-3-flash-preview")
         judge = get_judge_model(a, b)
         assert judge.provider == "anthropic"
         assert judge.model_id == "claude-sonnet-4-6"
 
-    def test_both_openai_prefers_sonnet(self) -> None:
-        """When both debaters are OpenAI, judge still uses preferred sonnet."""
+    def test_both_anthropic_gives_openai(self) -> None:
+        """Both anthropic → openai (second priority after sonnet)."""
+        a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")
+        b = ModelConfig(provider="anthropic", model_id="claude-opus-4-6")
+        judge = get_judge_model(a, b)
+        assert judge.provider == "openai"
+        assert judge.model_id == "gpt-5.4"
+
+    def test_both_openai_gives_sonnet(self) -> None:
+        """Both openai → sonnet (highest priority)."""
         a = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         b = ModelConfig(provider="openai", model_id="gpt-5.4")
+        judge = get_judge_model(a, b)
+        assert judge.provider == "anthropic"
+        assert judge.model_id == "claude-sonnet-4-6"
+
+    def test_both_google_gives_sonnet(self) -> None:
+        """Both google → sonnet (highest priority)."""
+        a = ModelConfig(provider="google", model_id="gemini-3-flash-preview")
+        b = ModelConfig(provider="google", model_id="gemini-3.1-pro-preview")
         judge = get_judge_model(a, b)
         assert judge.provider == "anthropic"
         assert judge.model_id == "claude-sonnet-4-6"

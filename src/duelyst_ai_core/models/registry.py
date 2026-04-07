@@ -64,16 +64,13 @@ MODEL_ALIASES: dict[str, ModelAlias] = {
     "gemini-2.5-flash-lite": ModelAlias("google", "gemini-2.5-flash-lite", "free"),
 }
 
-# Preferred judge model — used unless both debaters are from the same provider.
-_PREFERRED_JUDGE_PROVIDER = "anthropic"
-_PREFERRED_JUDGE_MODEL = "claude-sonnet-4-6"
-
-# Fallback per-provider defaults when the preferred judge can't be used.
-_JUDGE_FALLBACKS: dict[str, str] = {
-    "anthropic": "claude-haiku-4-5",
-    "openai": "gpt-5.4-mini",
-    "google": "gemini-3-flash-preview",
-}
+# Judge selection: pick the best model from the provider absent from the debate.
+# Priority: anthropic (sonnet) > openai (gpt-5.4) > google (gemini-3.1-pro).
+_JUDGE_BY_MISSING_PROVIDER: list[tuple[str, str, str]] = [
+    ("anthropic", "anthropic", "claude-sonnet-4-6"),
+    ("openai", "openai", "gpt-5.4"),
+    ("google", "google", "gemini-3.1-pro-preview"),
+]
 
 
 # Default resilience settings for LLM calls.
@@ -208,11 +205,12 @@ def create_model(config: ModelConfig) -> BaseChatModel:
 
 
 def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:
-    """Auto-select a judge model, preferring claude-sonnet-4-6.
+    """Auto-select a judge model from a provider not used by either debater.
 
-    The preferred judge is ``claude-sonnet-4-6``.  If both debaters already
-    use Anthropic, a fallback from a different provider is chosen instead so
-    the judge always comes from a different provider than at least one debater.
+    Priority order when multiple providers are absent:
+      1. Anthropic  → ``claude-sonnet-4-6``
+      2. OpenAI     → ``gpt-5.4``
+      3. Google     → ``gemini-3.1-pro-preview``
 
     Args:
         model_a: Configuration for debater A.
@@ -228,36 +226,23 @@ def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:
 
     used_providers = {model_a.provider, model_b.provider}
 
-    # Use preferred judge when at least one debater is NOT Anthropic.
-    if _PREFERRED_JUDGE_PROVIDER not in used_providers or len(used_providers) > 1:
-        logger.info(
-            "Auto-selected judge model: %s/%s (debaters: %s, %s)",
-            _PREFERRED_JUDGE_PROVIDER,
-            _PREFERRED_JUDGE_MODEL,
-            model_a.provider,
-            model_b.provider,
-        )
-        return ModelConfigCls(
-            provider=_PREFERRED_JUDGE_PROVIDER, model_id=_PREFERRED_JUDGE_MODEL
-        )
+    for missing_provider, judge_provider, judge_model_id in _JUDGE_BY_MISSING_PROVIDER:
+        if missing_provider not in used_providers:
+            logger.info(
+                "Auto-selected judge model: %s/%s (debaters: %s, %s)",
+                judge_provider,
+                judge_model_id,
+                model_a.provider,
+                model_b.provider,
+            )
+            return ModelConfigCls(provider=judge_provider, model_id=judge_model_id)
 
-    # Both debaters are Anthropic — pick a fallback from another provider.
-    available_providers = set(_JUDGE_FALLBACKS) - used_providers
-    if not available_providers:
-        available_providers = set(_JUDGE_FALLBACKS) - {model_a.provider}
-
-    judge_provider = sorted(available_providers)[0]
-    judge_model_id = _JUDGE_FALLBACKS[judge_provider]
-
-    logger.info(
-        "Auto-selected judge model: %s/%s (debaters: %s, %s)",
-        judge_provider,
-        judge_model_id,
-        model_a.provider,
-        model_b.provider,
+    # Should be unreachable with 3 providers and 2 debaters, but guard anyway.
+    msg = (
+        f"Cannot auto-select judge: all providers in use "
+        f"({model_a.provider}, {model_b.provider})"
     )
-
-    return ModelConfigCls(provider=judge_provider, model_id=judge_model_id)
+    raise ConfigError(msg)
 
 
 def get_model_tier(alias: str) -> ModelTier:
