@@ -32,8 +32,7 @@ def debate_config() -> DebateConfig:
 def sample_response() -> AgentResponse:
     return AgentResponse(
         argument="Test argument text",
-        key_points=["Point 1"],
-        evidence=[Evidence(claim="Test claim")],
+        evidence=[Evidence(claim="Test claim", source_type="web")],
         convergence_score=5,
         convergence_reasoning="Moderate agreement",
     )

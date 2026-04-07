@@ -59,13 +59,7 @@ class MarkdownFormatter(BaseFormatter):
         """Format a single debate turn."""
         label = f"Debater {turn.agent.upper()}"
         lines = [f"**{label}:**\n"]
-        lines.append(f"> {turn.response.argument}\n")
-
-        if turn.response.key_points:
-            lines.append("**Key points:**")
-            for point in turn.response.key_points:
-                lines.append(f"- {point}")
-            lines.append("")
+        lines.append(f"{turn.response.argument}\n")
 
         if turn.response.evidence:
             lines.append("**Evidence:**")

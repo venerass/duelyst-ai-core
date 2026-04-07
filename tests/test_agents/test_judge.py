@@ -15,7 +15,7 @@ def mock_synthesis() -> JudgeSynthesis:
     return JudgeSynthesis(
         summary_side_a="Side A argued for monoliths based on simplicity.",
         summary_side_b="Side B argued for microservices based on scalability.",
-        key_evidence_a=[Evidence(claim="Simplicity reduces bugs", source_type="reasoning")],
+        key_evidence_a=[Evidence(claim="Simplicity reduces bugs", source_type="web")],
         key_evidence_b=[
             Evidence(
                 claim="Netflix scaled with microservices",

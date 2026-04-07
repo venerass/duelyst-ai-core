@@ -39,7 +39,6 @@ def config() -> DebateConfig:
 def mock_response_a() -> AgentResponse:
     return AgentResponse(
         argument="Argument A",
-        key_points=["Point A"],
         convergence_score=5,
         convergence_reasoning="Some agreement.",
     )
@@ -49,7 +48,6 @@ def mock_response_a() -> AgentResponse:
 def mock_response_b() -> AgentResponse:
     return AgentResponse(
         argument="Argument B",
-        key_points=["Point B"],
         convergence_score=5,
         convergence_reasoning="Some agreement.",
     )

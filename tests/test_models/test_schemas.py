@@ -56,7 +56,6 @@ def sample_evidence() -> Evidence:
 def sample_response(sample_evidence: Evidence) -> AgentResponse:
     return AgentResponse(
         argument="Monoliths are better for startups because they reduce operational overhead.",
-        key_points=["Simpler deployment", "Lower infrastructure cost"],
         evidence=[sample_evidence],
         convergence_score=3,
         convergence_reasoning="Opponent makes valid points about scalability "
@@ -212,10 +211,10 @@ class TestDebateConfig:
 
 
 class TestEvidence:
-    def test_reasoning_default(self) -> None:
+    def test_web_default(self) -> None:
         e = Evidence(claim="Earth is round")
         assert e.source is None
-        assert e.source_type == "reasoning"
+        assert e.source_type == "web"
 
     def test_web_evidence(self, sample_evidence: Evidence) -> None:
         assert sample_evidence.source_type == "web"
@@ -286,37 +285,25 @@ class TestToolCallRecord:
 class TestAgentResponse:
     def test_valid(self, sample_response: AgentResponse) -> None:
         assert sample_response.convergence_score == 3
-        assert len(sample_response.key_points) == 2
+        assert len(sample_response.evidence) == 1
 
     def test_convergence_score_bounds(self) -> None:
         with pytest.raises(ValidationError):
             AgentResponse(
                 argument="Test",
-                key_points=["Point"],
                 convergence_score=-1,
                 convergence_reasoning="Reason",
             )
         with pytest.raises(ValidationError):
             AgentResponse(
                 argument="Test",
-                key_points=["Point"],
                 convergence_score=11,
-                convergence_reasoning="Reason",
-            )
-
-    def test_empty_key_points_rejected(self) -> None:
-        with pytest.raises(ValidationError):
-            AgentResponse(
-                argument="Test",
-                key_points=[],
-                convergence_score=5,
                 convergence_reasoning="Reason",
             )
 
     def test_empty_evidence_allowed(self) -> None:
         resp = AgentResponse(
             argument="Test",
-            key_points=["Point"],
             convergence_score=5,
             convergence_reasoning="Reason",
         )

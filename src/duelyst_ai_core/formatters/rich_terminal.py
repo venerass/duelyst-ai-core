@@ -72,11 +72,6 @@ class RichTerminalFormatter(BaseFormatter):
         content.append(turn.response.argument)
         content.append("\n\n")
 
-        if turn.response.key_points:
-            content.append("Key points: ", style="bold")
-            content.append(", ".join(turn.response.key_points))
-            content.append("\n")
-
         content.append(
             f"Convergence: {turn.response.convergence_score}/10",
             style="dim",

@@ -44,11 +44,11 @@ def sample_debate_result(sample_config: DebateConfig) -> DebateResult:
                     "Monoliths reduce operational complexity "
                     "for small teams with limited DevOps resources."
                 ),
-                key_points=["Simpler deployment", "Lower infrastructure cost"],
                 evidence=[
                     Evidence(
                         claim="90% of startups have teams under 10 engineers",
-                        source_type="reasoning",
+                        source="https://example.com/startup-stats",
+                        source_type="web",
                     ),
                 ],
                 convergence_score=3,
@@ -63,7 +63,6 @@ def sample_debate_result(sample_config: DebateConfig) -> DebateResult:
                 argument=(
                     "Microservices enable horizontal scaling and independent deployment cycles."
                 ),
-                key_points=["Horizontal scaling", "Independent deployment"],
                 evidence=[
                     Evidence(
                         claim="Netflix migrated to microservices to handle 200M+ subscribers",
@@ -81,7 +80,6 @@ def sample_debate_result(sample_config: DebateConfig) -> DebateResult:
             round_number=2,
             response=AgentResponse(
                 argument="Start with a monolith, extract services when scale demands it.",
-                key_points=["Monolith-first approach", "Extract when needed"],
                 convergence_score=7,
                 convergence_reasoning="Agreeing on a pragmatic middle ground.",
             ),
@@ -95,7 +93,6 @@ def sample_debate_result(sample_config: DebateConfig) -> DebateResult:
                     "Agreed — premature microservices add complexity "
                     "without benefit at small scale."
                 ),
-                key_points=["Start simple", "Scale when needed"],
                 convergence_score=8,
                 convergence_reasoning="Near full agreement on pragmatic approach.",
             ),
@@ -115,7 +112,8 @@ def sample_debate_result(sample_config: DebateConfig) -> DebateResult:
         key_evidence_a=[
             Evidence(
                 claim="90% of startups have teams under 10",
-                source_type="reasoning",
+                source="https://example.com/startup-stats",
+                source_type="web",
             )
         ],
         key_evidence_b=[

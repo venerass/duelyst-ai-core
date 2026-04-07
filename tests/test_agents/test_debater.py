@@ -14,7 +14,6 @@ from duelyst_ai_core.agents.schemas import AgentResponse
 def mock_response() -> AgentResponse:
     return AgentResponse(
         argument="Monoliths reduce operational complexity for small teams.",
-        key_points=["Simpler deployment", "Lower cost"],
         convergence_score=3,
         convergence_reasoning="Opponent has valid scalability points but ignores startup context.",
     )
@@ -83,7 +82,6 @@ class TestDebaterGraphInvocation:
         """The convergence score from the model is preserved."""
         response = AgentResponse(
             argument="We agree on this.",
-            key_points=["Agreement"],
             convergence_score=9,
             convergence_reasoning="Near full agreement.",
         )

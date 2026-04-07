@@ -30,11 +30,6 @@ class TestMarkdownFormatter:
         assert "Monoliths reduce operational complexity" in output
         assert "Microservices enable horizontal scaling" in output
 
-    def test_contains_key_points(self, sample_debate_result: DebateResult) -> None:
-        output = MarkdownFormatter().format(sample_debate_result)
-        assert "Simpler deployment" in output
-        assert "Horizontal scaling" in output
-
     def test_contains_evidence(self, sample_debate_result: DebateResult) -> None:
         output = MarkdownFormatter().format(sample_debate_result)
         assert "Netflix" in output

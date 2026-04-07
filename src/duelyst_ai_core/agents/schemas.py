@@ -16,7 +16,7 @@ class Evidence(BaseModel):
 
     Args:
         claim: The factual claim being supported.
-        source: URL, citation, or None if derived from reasoning.
+        source: URL, citation, or None.
         source_type: How the evidence was obtained.
     """
 
@@ -24,7 +24,7 @@ class Evidence(BaseModel):
 
     claim: str = Field(min_length=1)
     source: str | None = None
-    source_type: Literal["web", "code", "reasoning"] = "reasoning"
+    source_type: Literal["web", "code"] = "web"
 
 
 class Reflection(BaseModel):
@@ -72,9 +72,8 @@ class AgentResponse(BaseModel):
     score indicating how much the agent agrees with its opponent.
 
     Args:
-        argument: The main argument text for this turn.
-        key_points: Bullet-point summary of the main claims.
-        evidence: Supporting evidence for the argument.
+        argument: The main argument text for this turn, formatted in Markdown.
+        evidence: Supporting evidence from web searches.
         convergence_score: Agreement level with opponent
             (0=total disagreement, 10=full agreement).
         convergence_reasoning: Explanation of why this convergence score.
@@ -83,7 +82,6 @@ class AgentResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     argument: str = Field(min_length=1)
-    key_points: list[str] = Field(min_length=1)
     evidence: list[Evidence] = Field(default_factory=list)
     convergence_score: int = Field(ge=0, le=10)
     convergence_reasoning: str = Field(min_length=1)

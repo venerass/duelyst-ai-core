@@ -33,7 +33,6 @@ def debate_config() -> DebateConfig:
 def mock_response_a() -> AgentResponse:
     return AgentResponse(
         argument="Monoliths are simpler.",
-        key_points=["Simpler deployment"],
         convergence_score=5,
         convergence_reasoning="Some agreement.",
     )
@@ -43,7 +42,6 @@ def mock_response_a() -> AgentResponse:
 def mock_response_b() -> AgentResponse:
     return AgentResponse(
         argument="Microservices scale better.",
-        key_points=["Horizontal scaling"],
         convergence_score=5,
         convergence_reasoning="Some agreement.",
     )
