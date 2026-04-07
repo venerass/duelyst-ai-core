@@ -49,10 +49,10 @@ MODEL_ALIASES: dict[str, ModelAlias] = {
     "gpt-5": ModelAlias("openai", "gpt-5.4", "standard"),
     "gpt-5-high": ModelAlias("openai", "gpt-5.4", "pro"),
     # ── Google ─────────────────────────────────────────────────────────────
-    "gemini-flash-lite": ModelAlias("google", "gemini-3.1-flash-lite-preview", "free"),
-    "gemini-flash": ModelAlias("google", "gemini-3-flash-preview", "standard"),
-    "gemini-pro": ModelAlias("google", "gemini-3.1-pro-preview", "standard"),
-    "gemini-pro-high": ModelAlias("google", "gemini-3.1-pro-preview", "pro"),
+    "gemini-flash-lite": ModelAlias("google", "gemini-2.5-flash-lite", "free"),
+    "gemini-flash": ModelAlias("google", "gemini-2.5-flash", "standard"),
+    "gemini-pro": ModelAlias("google", "gemini-2.5-pro", "standard"),
+    "gemini-pro-high": ModelAlias("google", "gemini-2.5-pro", "pro"),
     # ── Legacy compatibility ───────────────────────────────────────────────
     # Kept so existing debates still resolve. Not shown in the product catalog.
     "gpt-4o": ModelAlias("openai", "gpt-4o", "standard"),
@@ -62,6 +62,9 @@ MODEL_ALIASES: dict[str, ModelAlias] = {
     "gemini-2.5-pro": ModelAlias("google", "gemini-2.5-pro", "standard"),
     "gemini-2.5-flash": ModelAlias("google", "gemini-2.5-flash", "standard"),
     "gemini-2.5-flash-lite": ModelAlias("google", "gemini-2.5-flash-lite", "free"),
+    "gemini-3.1-pro": ModelAlias("google", "gemini-3.1-pro-preview", "standard"),
+    "gemini-3-flash": ModelAlias("google", "gemini-3-flash-preview", "standard"),
+    "gemini-3.1-flash-lite": ModelAlias("google", "gemini-3.1-flash-lite-preview", "free"),
 }
 
 # Judge selection: pick the best model from the provider absent from the debate.
@@ -69,7 +72,7 @@ MODEL_ALIASES: dict[str, ModelAlias] = {
 _JUDGE_BY_MISSING_PROVIDER: list[tuple[str, str, str]] = [
     ("anthropic", "anthropic", "claude-sonnet-4-6"),
     ("openai", "openai", "gpt-5.4"),
-    ("google", "google", "gemini-3.1-pro-preview"),
+    ("google", "google", "gemini-2.5-pro"),
 ]
 
 
@@ -210,7 +213,7 @@ def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:
     Priority order when multiple providers are absent:
       1. Anthropic  → ``claude-sonnet-4-6``
       2. OpenAI     → ``gpt-5.4``
-      3. Google     → ``gemini-3.1-pro-preview``
+      3. Google     → ``gemini-2.5-pro``
 
     Args:
         model_a: Configuration for debater A.

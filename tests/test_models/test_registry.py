@@ -42,7 +42,7 @@ class TestResolveAlias:
     def test_google_alias(self) -> None:
         provider, model_id = resolve_alias("gemini-flash")
         assert provider == "google"
-        assert model_id == "gemini-3-flash-preview"
+        assert model_id == "gemini-2.5-flash"
 
     def test_full_model_id_claude(self) -> None:
         provider, model_id = resolve_alias("claude-sonnet-4-6")
@@ -119,7 +119,7 @@ class TestGetJudgeModel:
         b = ModelConfig(provider="openai", model_id="gpt-5.4-mini")
         judge = get_judge_model(a, b)
         assert judge.provider == "google"
-        assert judge.model_id == "gemini-3.1-pro-preview"
+        assert judge.model_id == "gemini-2.5-pro"
 
     def test_anthropic_vs_google_gives_openai(self) -> None:
         a = ModelConfig(provider="anthropic", model_id="claude-haiku-4-5")

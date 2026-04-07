@@ -90,7 +90,7 @@ class TestBuildConfig:
         )
         assert config.judge_model is not None
         assert config.judge_model.provider == "google"
-        assert config.judge_model.model_id == "gemini-3-flash-preview"
+        assert config.judge_model.model_id == "gemini-2.5-flash"
 
     def test_with_instructions(self) -> None:
         config = _build_config(

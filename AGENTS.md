@@ -199,9 +199,9 @@ Never expose raw provider model IDs to users. All user-facing model names go thr
 | `gpt-4o-mini` | openai | `gpt-4o-mini` *(legacy compat)* |
 | `gpt-4.1` | openai | `gpt-4.1` *(legacy compat)* |
 | `gpt-4.1-mini` | openai | `gpt-4.1-mini` *(legacy compat)* |
-| `gemini-pro` | google | `gemini-3.1-pro-preview` |
-| `gemini-flash` | google | `gemini-3-flash-preview` |
-| `gemini-flash-lite` | google | `gemini-3.1-flash-lite-preview` |
+| `gemini-pro` | google | `gemini-2.5-pro` |
+| `gemini-flash` | google | `gemini-2.5-flash` |
+| `gemini-flash-lite` | google | `gemini-2.5-flash-lite` |
 
 ---
 
