@@ -77,6 +77,7 @@ DebateCompleted | DebateError event
 - Removing or renaming `arun_with_events()` on `DebateOrchestrator`
 - Changing the fields of any event type (`TurnCompleted`, `SynthesisCompleted`, `DebateCompleted`, `DebateError`)
 - Changing `DebateConfig`, `ModelConfig`, or `resolve_alias()` signatures
+- Removing `langchain_callbacks` parameter from `DebateOrchestrator.__init__()`
 - Moving or renaming `ToolType` in `orchestrator/state.py`
 - Removing any symbol from `__all__`
 
@@ -202,6 +203,12 @@ Never expose raw provider model IDs to users. All user-facing model names go thr
 | `gemini-pro` | google | `gemini-2.5-pro` |
 | `gemini-flash` | google | `gemini-2.5-flash` |
 | `gemini-flash-lite` | google | `gemini-2.5-flash-lite` |
+
+### Pattern 5: External LangChain callbacks via `langchain_callbacks`
+
+`DebateOrchestrator.__init__()` accepts an optional `langchain_callbacks: list[BaseCallbackHandler]` parameter. When provided, these callbacks are forwarded to every `graph.ainvoke()` call on debater and judge agents via the LangChain `config=RunnableConfig(callbacks=...)` mechanism. This enables external consumers (e.g., `duelyst-ai-api`) to inject observability handlers (Langfuse, LangSmith, etc.) without the core package knowing about them.
+
+**Anti-pattern:** Importing `langfuse` or any observability SDK directly in core. The core must remain product-independent.
 
 ---
 

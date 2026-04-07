@@ -70,6 +70,7 @@ def _make_judge_result(synthesis: JudgeSynthesis) -> dict[str, object]:
 def _create_orchestrator(
     config: DebateConfig,
     callback: CollectorCallback | None = None,
+    langchain_callbacks: list[object] | None = None,
 ) -> DebateOrchestrator:
     """Create an orchestrator with mocked models."""
     with (
@@ -78,7 +79,11 @@ def _create_orchestrator(
     ):
         mock_create.return_value = MagicMock()
         mock_judge.return_value = ModelConfig(provider="google", model_id="gemini-2.5-flash")
-        return DebateOrchestrator(config, callback=callback)
+        return DebateOrchestrator(
+            config,
+            callback=callback,
+            langchain_callbacks=langchain_callbacks,
+        )
 
 
 class TestOrchestratorInitDebate:
@@ -358,3 +363,113 @@ class TestOrchestratorEventEmission:
         # Debate should still complete despite buggy callback
         assert len(result["turns"]) == 2
         assert result["synthesis"] is mock_synthesis
+
+
+class TestLangchainCallbacksPropagation:
+    async def test_langchain_callbacks_passed_to_agent_invoke(
+        self,
+        mock_response_a: AgentResponse,
+        mock_response_b: AgentResponse,
+        mock_synthesis: JudgeSynthesis,
+    ) -> None:
+        """Verify that langchain_callbacks are forwarded to graph.ainvoke config."""
+        config = DebateConfig(
+            topic="Test topic",
+            model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+            model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
+            max_rounds=1,
+        )
+
+        mock_callback = MagicMock()
+        orchestrator = _create_orchestrator(config, langchain_callbacks=[mock_callback])
+
+        orchestrator._debater_a.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_a)
+        )
+        orchestrator._debater_b.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_b)
+        )
+        orchestrator._judge.graph.ainvoke = AsyncMock(
+            return_value=_make_judge_result(mock_synthesis)
+        )
+
+        initial_state = {
+            "config": config,
+            "turns": [],
+            "current_round": 0,
+            "current_agent": "a",
+            "convergence_history": [],
+            "status": DebateStatus.RUNNING,
+            "synthesis": None,
+            "error": None,
+        }
+
+        await orchestrator.graph.ainvoke(initial_state)
+
+        # All three agents should receive callbacks in the config dict
+        for mock_invoke in [
+            orchestrator._debater_a.graph.ainvoke,
+            orchestrator._debater_b.graph.ainvoke,
+            orchestrator._judge.graph.ainvoke,
+        ]:
+            mock_invoke.assert_awaited_once()
+            call_kwargs = mock_invoke.call_args
+            assert call_kwargs is not None
+            # config is passed as keyword arg or second positional arg
+            config_arg = call_kwargs.kwargs.get("config") or (
+                call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
+            )
+            assert config_arg is not None
+            assert config_arg["callbacks"] == [mock_callback]
+
+    async def test_no_langchain_callbacks_no_config(
+        self,
+        mock_response_a: AgentResponse,
+        mock_response_b: AgentResponse,
+        mock_synthesis: JudgeSynthesis,
+    ) -> None:
+        """Without langchain_callbacks, no config dict is passed."""
+        config = DebateConfig(
+            topic="Test topic",
+            model_a=ModelConfig(provider="anthropic", model_id="claude-haiku-4-5"),
+            model_b=ModelConfig(provider="openai", model_id="gpt-5.4-mini"),
+            max_rounds=1,
+        )
+
+        orchestrator = _create_orchestrator(config)
+
+        orchestrator._debater_a.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_a)
+        )
+        orchestrator._debater_b.graph.ainvoke = AsyncMock(
+            return_value=_make_debater_result(mock_response_b)
+        )
+        orchestrator._judge.graph.ainvoke = AsyncMock(
+            return_value=_make_judge_result(mock_synthesis)
+        )
+
+        initial_state = {
+            "config": config,
+            "turns": [],
+            "current_round": 0,
+            "current_agent": "a",
+            "convergence_history": [],
+            "status": DebateStatus.RUNNING,
+            "synthesis": None,
+            "error": None,
+        }
+
+        await orchestrator.graph.ainvoke(initial_state)
+
+        # Without langchain_callbacks, config should be empty dict or not contain callbacks
+        for mock_invoke in [
+            orchestrator._debater_a.graph.ainvoke,
+            orchestrator._debater_b.graph.ainvoke,
+            orchestrator._judge.graph.ainvoke,
+        ]:
+            call_kwargs = mock_invoke.call_args
+            config_arg = call_kwargs.kwargs.get("config") or (
+                call_kwargs.args[1] if len(call_kwargs.args) > 1 else None
+            )
+            # Either no config is passed, or it's an empty dict
+            assert config_arg is None or config_arg == {}

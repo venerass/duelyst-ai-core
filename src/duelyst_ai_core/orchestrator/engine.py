@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
 from duelyst_ai_core.agents.debater import DebaterAgent
@@ -53,6 +54,7 @@ from duelyst_ai_core.orchestrator.state import (
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from langchain_core.callbacks import BaseCallbackHandler
     from langchain_core.tools import BaseTool
     from langgraph.graph.state import CompiledStateGraph
 
@@ -83,9 +85,11 @@ class DebateOrchestrator:
         config: DebateConfig,
         tools: list[BaseTool] | None = None,
         callback: DebateEventCallback | None = None,
+        langchain_callbacks: list[BaseCallbackHandler] | None = None,
     ) -> None:
         self._config = config
         self._callback: DebateEventCallback = callback or NullCallback()
+        self._langchain_callbacks = langchain_callbacks or []
 
         # Create models and sub-agents
         model_a = create_model(config.model_a)
@@ -215,7 +219,14 @@ class DebateOrchestrator:
         await self._emit(TurnStarted(agent=role, round_number=current_round))
 
         # Invoke the debater's ReAct agent with messages
-        result = await debater.graph.ainvoke({"messages": [HumanMessage(content=user_content)]})
+        invoke_config: RunnableConfig | None = (
+            RunnableConfig(callbacks=self._langchain_callbacks)
+            if self._langchain_callbacks
+            else None
+        )
+        result = await debater.graph.ainvoke(
+            {"messages": [HumanMessage(content=user_content)]}, config=invoke_config
+        )
 
         # Extract structured response from create_agent output
         response = cast("AgentResponse", result["structured_response"])
@@ -335,7 +346,14 @@ class DebateOrchestrator:
             total_rounds=state["current_round"],
         )
 
-        result = await self._judge.graph.ainvoke({"messages": [HumanMessage(content=user_message)]})
+        invoke_config: RunnableConfig | None = (
+            RunnableConfig(callbacks=self._langchain_callbacks)
+            if self._langchain_callbacks
+            else None
+        )
+        result = await self._judge.graph.ainvoke(
+            {"messages": [HumanMessage(content=user_message)]}, config=invoke_config
+        )
 
         synthesis = cast("JudgeSynthesis", result["structured_response"])
 
