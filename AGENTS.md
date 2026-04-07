@@ -87,7 +87,7 @@ DebateCompleted | DebateError event
 
 ## 4. Tech Stack
 
-- **Python 3.11–3.14** — actively tested across this range
+- **Python 3.11–3.13** — actively tested across this range
 - **LangGraph `>=1.1,<1.2`** — `StateGraph` orchestrator
 - **LangChain `>=1.2.15`** — `create_agent` factory, `BaseChatModel` interface
 - **langchain-anthropic `>=1.4,<2.0`**, **langchain-openai `>=1.1,<2.0`**, **langchain-google-genai `>=4.2,<5.0`** — provider SDKs

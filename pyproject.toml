@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "duelyst-ai-core"
-version = "0.7.0"
+version = "0.7.1"
 description = "Open-source AI debate engine — multi-model adversarial debates with LangGraph orchestration"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 authors = [
     { name = "Duelyst.ai", email = "core@duelyst.ai" },
 ]
