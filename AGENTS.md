@@ -106,7 +106,7 @@ DebateCompleted | DebateError event
 
 1. **Agents never receive user input in their system prompt.** Topic, instructions, and debate history go into the user message (via `build_debater_user_message()`). System prompts are static strings. This is a hard security boundary against prompt injection.
 
-2. **The judge model is always from a different provider.** `get_judge_model(model_a, model_b)` refuses to pick a model from the same provider as either debater. The judge defaults are: Anthropic debates → `claude-haiku-4-5`, OpenAI debates → `gpt-5.4-mini`, Google debates → `gemini-2.5-flash`.
+2. **The judge model defaults to `claude-sonnet-4-6`.** `get_judge_model(model_a, model_b)` always picks `claude-sonnet-4-6` unless both debaters are Anthropic, in which case it falls back to `gpt-5.4-mini` (OpenAI) or `gemini-3-flash-preview` (Google).
 
 3. **Convergence requires both agents to agree.** `check_convergence()` returns `True` only if the last `convergence_rounds` entries in `convergence_history` all have `score_a >= threshold AND score_b >= threshold`. One agent cannot unilaterally end the debate.
 
@@ -199,9 +199,9 @@ Never expose raw provider model IDs to users. All user-facing model names go thr
 | `gpt-4o-mini` | openai | `gpt-4o-mini` *(legacy compat)* |
 | `gpt-4.1` | openai | `gpt-4.1` *(legacy compat)* |
 | `gpt-4.1-mini` | openai | `gpt-4.1-mini` *(legacy compat)* |
-| `gemini-pro` | google | `gemini-2.5-pro` |
-| `gemini-flash` | google | `gemini-2.5-flash` |
-| `gemini-flash-lite` | google | `gemini-2.5-flash-lite` |
+| `gemini-pro` | google | `gemini-3.1-pro-preview` |
+| `gemini-flash` | google | `gemini-3-flash-preview` |
+| `gemini-flash-lite` | google | `gemini-3.1-flash-lite-preview` |
 
 ---
 
@@ -242,7 +242,7 @@ Never expose raw provider model IDs to users. All user-facing model names go thr
 - **Run tests with `uv run -- python -m pytest -v`**, not bare `pytest`, to avoid venv confusion when multiple Python projects are open.
 - **All unit tests mock LLM calls** — no API keys are needed for `uv run pytest`. The full suite (~191 tests) runs in ~3 seconds.
 - **Integration tests (`tests/integration/`) require real API keys** and are excluded from CI by default (`-m integration` marker). Run them manually before major releases.
-- **After adding a new model alias**, add a test in `test_registry.py` covering the alias, tier, and provider. After changing `_JUDGE_DEFAULTS`, update `test_with_judge` in `test_main.py` to assert the new judge model ID.
+- **After adding a new model alias**, add a test in `test_registry.py` covering the alias, tier, and provider. After changing judge defaults, update `TestGetJudgeModel` in `test_registry.py` and `test_with_judge` in `test_main.py`.
 
 ### Environment Setup
 

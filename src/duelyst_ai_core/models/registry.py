@@ -49,10 +49,10 @@ MODEL_ALIASES: dict[str, ModelAlias] = {
     "gpt-5": ModelAlias("openai", "gpt-5.4", "standard"),
     "gpt-5-high": ModelAlias("openai", "gpt-5.4", "pro"),
     # ── Google ─────────────────────────────────────────────────────────────
-    "gemini-flash-lite": ModelAlias("google", "gemini-3.1-flash-lite", "free"),
-    "gemini-flash": ModelAlias("google", "gemini-3.0-flash", "standard"),
-    "gemini-pro": ModelAlias("google", "gemini-3.1-pro", "standard"),
-    "gemini-pro-high": ModelAlias("google", "gemini-3.1-pro", "pro"),
+    "gemini-flash-lite": ModelAlias("google", "gemini-3.1-flash-lite-preview", "free"),
+    "gemini-flash": ModelAlias("google", "gemini-3-flash-preview", "standard"),
+    "gemini-pro": ModelAlias("google", "gemini-3.1-pro-preview", "standard"),
+    "gemini-pro-high": ModelAlias("google", "gemini-3.1-pro-preview", "pro"),
     # ── Legacy compatibility ───────────────────────────────────────────────
     # Kept so existing debates still resolve. Not shown in the product catalog.
     "gpt-4o": ModelAlias("openai", "gpt-4o", "standard"),
@@ -64,11 +64,15 @@ MODEL_ALIASES: dict[str, ModelAlias] = {
     "gemini-2.5-flash-lite": ModelAlias("google", "gemini-2.5-flash-lite", "free"),
 }
 
-# Low-cost defaults per provider for auto-selected judges.
-_JUDGE_DEFAULTS: dict[str, str] = {
+# Preferred judge model — used unless both debaters are from the same provider.
+_PREFERRED_JUDGE_PROVIDER = "anthropic"
+_PREFERRED_JUDGE_MODEL = "claude-sonnet-4-6"
+
+# Fallback per-provider defaults when the preferred judge can't be used.
+_JUDGE_FALLBACKS: dict[str, str] = {
     "anthropic": "claude-haiku-4-5",
     "openai": "gpt-5.4-mini",
-    "google": "gemini-3.0-flash",
+    "google": "gemini-3-flash-preview",
 }
 
 
@@ -204,11 +208,11 @@ def create_model(config: ModelConfig) -> BaseChatModel:
 
 
 def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:
-    """Auto-select a judge model from a different provider than both debaters.
+    """Auto-select a judge model, preferring claude-sonnet-4-6.
 
-    The judge must use a different provider to avoid bias. If both debaters
-    use the same provider, any other provider is selected. If they use
-    different providers, the remaining provider is chosen.
+    The preferred judge is ``claude-sonnet-4-6``.  If both debaters already
+    use Anthropic, a fallback from a different provider is chosen instead so
+    the judge always comes from a different provider than at least one debater.
 
     Args:
         model_a: Configuration for debater A.
@@ -223,16 +227,27 @@ def get_judge_model(model_a: ModelConfig, model_b: ModelConfig) -> ModelConfig:
     from duelyst_ai_core.orchestrator.state import ModelConfig as ModelConfigCls
 
     used_providers = {model_a.provider, model_b.provider}
-    available_providers = set(_JUDGE_DEFAULTS) - used_providers
 
+    # Use preferred judge when at least one debater is NOT Anthropic.
+    if _PREFERRED_JUDGE_PROVIDER not in used_providers or len(used_providers) > 1:
+        logger.info(
+            "Auto-selected judge model: %s/%s (debaters: %s, %s)",
+            _PREFERRED_JUDGE_PROVIDER,
+            _PREFERRED_JUDGE_MODEL,
+            model_a.provider,
+            model_b.provider,
+        )
+        return ModelConfigCls(
+            provider=_PREFERRED_JUDGE_PROVIDER, model_id=_PREFERRED_JUDGE_MODEL
+        )
+
+    # Both debaters are Anthropic — pick a fallback from another provider.
+    available_providers = set(_JUDGE_FALLBACKS) - used_providers
     if not available_providers:
-        # Both debaters use different providers and all 3 are taken;
-        # this shouldn't happen with 3 providers and 2 debaters, but
-        # fall back to picking a provider different from at least one.
-        available_providers = set(_JUDGE_DEFAULTS) - {model_a.provider}
+        available_providers = set(_JUDGE_FALLBACKS) - {model_a.provider}
 
     judge_provider = sorted(available_providers)[0]
-    judge_model_id = _JUDGE_DEFAULTS[judge_provider]
+    judge_model_id = _JUDGE_FALLBACKS[judge_provider]
 
     logger.info(
         "Auto-selected judge model: %s/%s (debaters: %s, %s)",
